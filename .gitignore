@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+
+# Dart / Flutter
+.dart_tool/
+.packages
+pubspec.lock
+build/
+doc/api/
+
+# Simulator output
+# Traces are large and reproducible from a seed - the seed is the artifact,
+# not the trace. Regression seeds under tests/sim/regressions/ are committed.
+sim-out/
+*.trace.jsonl
+*.scenario.json
+!tests/sim/regressions/*.scenario.json
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Secrets - never commit device keys or deployment credentials
+*.pem
+*.key
+.env
+.env.*
