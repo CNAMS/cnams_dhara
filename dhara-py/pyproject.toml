@@ -90,3 +90,36 @@ files = ["dhara", "sim", "tests"]
 # strictness there costs more than it catches.
 module = "sim.*"
 disallow_any_generics = false
+
+# -------------------------------------------------------------- pytest ---
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+markers = [
+    "property: algebraic law tests over randomised operation orders (Hypothesis)",
+    "conformance: runs the language-agnostic vectors under spec/conformance/",
+    "sim: deterministic simulation tests; may be slow",
+    "slow: excluded from the fast push pipeline",
+]
+filterwarnings = ["error"]
+
+# ------------------------------------------------------------ coverage ---
+
+[tool.coverage.run]
+branch = true
+source = ["dhara"]
+# sim/ is deliberately excluded. A coverage number on a simulator measures
+# how much of the simulator ran, which is not the property of interest. The
+# property of interest for sim/ is the deliberate-bug experiment (WI-2.17).
+omit = ["sim/*", "tests/*"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@overload",
+]
