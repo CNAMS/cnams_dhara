@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from typing import Protocol, Self, TypeAlias, runtime_checkable
 
-__all__ = ["JSONValue", "Lattice", "LatticeError"]
+__all__ = ["JSONValue", "Lattice", "LatticeError", "canonical_scalar"]
 
 JSONValue: TypeAlias = (
     "None | bool | int | float | str | list[JSONValue] | dict[str, JSONValue]"
@@ -41,6 +41,45 @@ JSONValue: TypeAlias = (
 
 class LatticeError(ValueError):
     """A lattice was constructed or joined in a way its contract forbids."""
+
+
+#: Type tags for canonical scalar ordering. Fixed strings rather than Python
+#: type names, because Dart must produce the identical ordering and does not
+#: have Python's type names.
+_SCALAR_TAGS: dict[type | None, str] = {
+    type(None): "0null",
+    bool: "1bool",
+    int: "2int",
+    str: "3str",
+}
+
+
+def canonical_scalar(value: object) -> tuple[str, str]:
+    """Render a scalar as a type-tagged, string-comparable pair.
+
+    Canonical forms get sorted, and a register may legitimately hold `None`,
+    `"x"` and `3` at different points in its history (C-12: clearing a field is
+    a value, not an absence). Sorting those directly raises `TypeError` in
+    Python and would silently order them differently in Dart -- so ordering
+    goes through a tag first and the value's string form second.
+
+    `bool` is tagged before `int` and checked first, because `bool` is a
+    subclass of `int` in Python and would otherwise compare as 0 and 1.
+    """
+    if isinstance(value, bool):
+        return (_SCALAR_TAGS[bool], "true" if value else "false")
+    if value is None:
+        return (_SCALAR_TAGS[type(None)], "")
+    if isinstance(value, int):
+        # Zero-padded with an explicit sign so lexicographic order matches
+        # numeric order, the same trick the HLC encoding uses.
+        return (_SCALAR_TAGS[int], f"{'-' if value < 0 else '+'}{abs(value):020d}")
+    if isinstance(value, str):
+        return (_SCALAR_TAGS[str], value)
+    raise LatticeError(
+        f"{type(value).__name__} has no canonical scalar form. Floats are "
+        f"excluded deliberately: Python and Dart do not format them identically."
+    )
 
 
 @runtime_checkable
