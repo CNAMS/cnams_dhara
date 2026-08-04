@@ -93,8 +93,8 @@ def assert_canonical_is_order_stable(a: T, b: T) -> None:
     assert a.join(b).canonical() == b.join(a).join(a).canonical()
 
 
-def assert_json_round_trips(a: T, cls: type[T]) -> None:
-    restored = cls.from_json(a.to_json())
+def assert_json_round_trips(a: T, decode: Callable[[object], T]) -> None:
+    restored = decode(a.to_json())
     assert restored.canonical() == a.canonical(), (
         f"json round-trip changed the value:\n  before {a.canonical()}\n"
         f"  after  {restored.canonical()}"
@@ -106,13 +106,18 @@ def assert_lattice_laws(
     b: T,
     c: T,
     *,
-    cls: type[T],
+    decode: Callable[[object], T],
     observations: Callable[[T], frozenset[object]] | None = None,
 ) -> None:
     """Every law, for one triple of values.
 
     Called from a Hypothesis-driven test per lattice type, so a single call site
     covers the whole contract.
+
+    `decode` is passed rather than the class, because `StatusLattice.from_json`
+    needs the declared domain order to decode at all -- the order lives in the
+    consumer's schema binding, never in the serialised value. That asymmetry is
+    the dependency rule showing up in the type signature, and it is correct.
     """
     assert_commutative(a, b)
     assert_associative(a, b, c)
@@ -120,7 +125,7 @@ def assert_lattice_laws(
     assert_idempotent(b)
     assert_leq_agrees_with_join(a, b)
     assert_canonical_is_order_stable(a, b)
-    assert_json_round_trips(a, cls)
+    assert_json_round_trips(a, decode)
     if observations is not None:
         assert_join_loses_nothing(a, b, observations)
 
