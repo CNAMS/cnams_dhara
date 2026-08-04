@@ -10,3 +10,5 @@
 #
 # Format: <seed> <preset>  # what it caught
 49 hostile  # element-level removals_are_honoured fired on a legitimate concurrent unobserved add (C-14); invariant was too coarse, now checked at tag level
+1041 hostile  # a removal lost to a crash before commit was still demanded by removals_are_honoured
+1424 hostile  # same, and exposed that the crash-loss check was vacuously true for a replica that never saw the add

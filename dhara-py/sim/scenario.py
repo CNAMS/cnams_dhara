@@ -419,6 +419,18 @@ class Simulation:
             }
         if op.kind == "tag" and isinstance(value, ORSet):
             return op.detail[0] in {t.element for t in value.adds}
+        if op.kind == "tag_remove" and isinstance(value, ORSet):
+            # A removal survived if this replica *records* it - the observed
+            # tags appear in its removed set.
+            #
+            # ⚠ Checking instead that the tags are simply not live would be
+            # vacuously true for a replica that never heard of the add, and
+            # would mark real removals as surviving on the strength of a
+            # replica's ignorance. That is how a genuine resurrection gets
+            # excused. Found on seeds 1041 and 1424.
+            observed = set(op.detail[1]) if len(op.detail) == 2 else set()
+            recorded = {h.encode() for h in value.removed_tags}
+            return bool(observed) and observed <= recorded
         if op.kind == "status" and isinstance(value, StatusLattice):
             return True  # a status join is lossy by design; see phase-1-exit
         return False

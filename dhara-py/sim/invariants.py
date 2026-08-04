@@ -217,7 +217,16 @@ def removals_are_honoured(oplog: OpLog, replicas: Sequence[Replica]) -> list[Vio
 
     removed: dict[tuple[str, str], set[str]] = {}
     for op in oplog.entries:
-        if op.kind == "tag_remove" and len(op.detail) == 2:
+        # Crash-lost removals are excluded for the same reason crash-lost
+        # writes are: a removal still volatile when its device lost power, and
+        # not yet propagated anywhere, did not survive to be honoured. Found by
+        # seeds 1041 and 1424, where a device removed a tag and crashed before
+        # committing.
+        if (
+            op.kind == "tag_remove"
+            and len(op.detail) == 2
+            and op.op_id not in oplog.crash_lost
+        ):
             removed.setdefault((op.record_id, op.field), set()).update(op.detail[1])
 
     for (record_id, field_name), tags in sorted(removed.items()):
