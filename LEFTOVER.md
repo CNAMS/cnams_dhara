@@ -12,7 +12,7 @@ three very different reasons:
 | 🚧 **Blocked on a decision** | Written, but resting on an assumption only you can confirm. → [DOUBTS.md](DOUBTS.md) |
 | 🌍 **Not doable from here** | Needs hardware, a network, a runner, or another human. |
 
-Last updated at 58 commits · Phase 0 at 13/15 · Phase 1 at 6/18.
+Last updated at 74 commits · Phase 0 at 13/15 · Phase 1 at 14/18.
 
 ---
 
@@ -97,14 +97,8 @@ The clock layer is done. The lattice layer is not.
 
 | WI | Item | Notes |
 |---|---|---|
-| 1.6 | Lattice base contract | The `join`/`leq`/codec protocol plus reusable law checkers, so adding a lattice costs three lines of test |
-| 1.7 | `GSet` | Simplest; validates the base contract on something with no subtlety |
-| 1.8 | `LWWRegister` with retained losers `[gate]` | Where D-02 becomes code |
-| 1.9 | `ORSet` | Observed-remove; C-14 |
-| 1.10 | `MeasurementSeries` `[gate]` | The conceptual centre. Where D-03, D-04 and D-05 all land. |
-| 1.11 | `StatusLattice` | Domain join, validated exhaustively at construction |
-| 1.12 | Schema descriptor API | `Field`, `Schema`, field-wise record join |
-| 1.13 | Review signal emission | Plus `spec/review-signals.md` — eleven signals declared by the catalogue |
+| ~~1.6–1.13~~ | ~~Lattices, schema, review signals~~ | **Done.** Five lattices, schema descriptor, field-wise record join, signal derivation. 91 tests green. |
+| 1.13b | `spec/review-signals.md` | The registry document. Codes exist in `review.py`; the wire-format spec does not. |
 | 1.14 | Conformance runner (merge) | All `n!` permutations of replica order |
 | 1.15 | Merge vectors `[gate]` | 16 of the 24 catalogue entries are expressible here |
 | 1.16 | Complete `merge-semantics.md` `[gate]` | The rationale sections; skeleton exists |

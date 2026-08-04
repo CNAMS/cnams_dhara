@@ -15,13 +15,13 @@ Markers: `[gate]` phase exit depends on it · `[stretch]` cut first when slippin
 | Phase | Weeks | Items | Done | Status |
 |---|---|---|---|---|
 | 0 — Conflict catalogue and spec | 1–2 | 15 | 13 | **exit blocked** — WI-0.0 and WI-0.14 |
-| 1 — Clocks and lattices | 3–5 | 18 | 6 | in progress — clock layer done |
+| 1 — Clocks and lattices | 3–5 | 18 | 14 | in progress — merge vectors remain |
 | 2 — The simulator | 6–9 | 22 | 0 | not started |
 | 3 — Delta sync and session protocol | 10–13 | 16 | 0 | not started |
 | 4 — Dart client and CGMS integration | 14–16 | 12 | 0 | not started |
 | 5 — Security and identity | 17–20 | 11 | 0 | not started |
 | 6 — Field deployment and write-up | 21–24 | 11 | 0 | not started |
-| **Total** | **24** | **105** | **19** | |
+| **Total** | **24** | **105** | **27** | |
 
 ---
 
@@ -56,14 +56,14 @@ protocol draft with every failure edge · [full checklist](phase-0-catalogue-and
 - [x] **WI-1.3** HLC receive path
 - [x] **WI-1.4** HLC under clock skew `[gate]`
 - [x] **WI-1.5** HLC conformance vectors `[spec]`
-- [ ] **WI-1.6** Lattice base contract
-- [ ] **WI-1.7** GSet
-- [ ] **WI-1.8** LWWRegister with retained losers `[gate]`
-- [ ] **WI-1.9** ORSet
-- [ ] **WI-1.10** MeasurementSeries `[gate]`
-- [ ] **WI-1.11** StatusLattice
-- [ ] **WI-1.12** Schema descriptor API
-- [ ] **WI-1.13** Review signal emission
+- [x] **WI-1.6** Lattice base contract
+- [x] **WI-1.7** GSet
+- [x] **WI-1.8** LWWRegister with retained losers `[gate]`
+- [x] **WI-1.9** ORSet
+- [x] **WI-1.10** MeasurementSeries `[gate]`
+- [x] **WI-1.11** StatusLattice
+- [x] **WI-1.12** Schema descriptor API
+- [x] **WI-1.13** Review signal emission
 - [ ] **WI-1.14** Conformance runner
 - [ ] **WI-1.15** Merge vectors from the catalogue `[spec]` `[gate]`
 - [ ] **WI-1.16** Complete merge-semantics.md `[spec]` `[gate]`
