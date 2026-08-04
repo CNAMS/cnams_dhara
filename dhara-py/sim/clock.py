@@ -101,6 +101,7 @@ def make_device_clock(
     *,
     horizon_ms: int,
     hostile: bool = True,
+    synchronised: bool = False,
 ) -> DeviceClock:
     """Generate a device clock from a seeded stream.
 
@@ -108,6 +109,16 @@ def make_device_clock(
     is discarded. Skipping a draw when `hostile` is false would shift every
     subsequent value in the stream, so a scenario's shape would change when a
     knob is tuned rather than when the seed changes.
+
+    ⚠ `synchronised` exists because aggressive skew **suppresses** a whole bug
+    class. With every device's clock offset by a random amount within +/- 3
+    days, two devices essentially never issue timestamps with the same physical
+    millisecond - so the `node_id` tiebreak that makes the total order total
+    almost never actually breaks a tie, and a mutation removing it survives
+    indefinitely.
+
+    Some centres do have phones with correct time. Modelling that is both more
+    realistic and the only way ties occur often enough to test.
     """
     offset = rng.integer(-THREE_DAYS_MS, THREE_DAYS_MS)
     drift = rng.integer(-5_000, 5_000)
@@ -120,8 +131,8 @@ def make_device_clock(
         for _ in range(jump_count)
     )
 
-    if not hostile:
-        # A quiet clock still consumed the same draws above.
+    if not hostile or synchronised:
+        # A quiet or synchronised clock still consumed the same draws above.
         return DeviceClock(device_id, 0, 0, (), time)
 
     return DeviceClock(device_id, offset, drift, jumps, time)

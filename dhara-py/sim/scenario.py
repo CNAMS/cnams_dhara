@@ -82,6 +82,10 @@ class Scenario:
     horizon_ms: int
     crash_rate: float
     partition_rate: float
+    #: Fraction of devices whose clocks are correct. Skew is the interesting
+    #: fault, but universal skew suppresses timestamp ties and therefore hides
+    #: every tiebreak bug - see make_device_clock.
+    synchronised_fraction: float = 0.0
 
     def to_json(self) -> dict[str, Any]:
         return asdict(self)
@@ -126,6 +130,9 @@ def generate(seed: int, preset: str = "hostile") -> Scenario:
         horizon_ms=overrides.get("horizon_ms", rng.integer(1, 30) * 24 * 60 * 60 * 1000),
         crash_rate=overrides["crash_rate"],
         partition_rate=overrides["partition_rate"],
+        synchronised_fraction=overrides.get(
+            "synchronised_fraction", rng.choice([0.0, 0.5, 1.0])
+        ),
     )
 
 
@@ -171,7 +178,7 @@ class Simulation:
 
         self.network = Network(
             self.loop,
-            self.rng.child("net"),
+            self.rng.derive("net"),
             self.profile,
             self._on_message,
             self._on_window_opened,
@@ -193,10 +200,12 @@ class Simulation:
             device_id = f"dev_{index}"
             clock = make_device_clock(
                 device_id,
-                self.rng.child("clock", device_id),
+                self.rng.derive("clock", device_id),
                 self.time,
                 horizon_ms=scenario.horizon_ms,
                 hostile=scenario.profile != "clean",
+                synchronised=(index / max(1, scenario.devices))
+                < scenario.synchronised_fraction,
             )
             self.replicas[device_id] = make_replica(
                 device_id, BENCH_SCHEMA, clock, self.oplog
@@ -204,7 +213,7 @@ class Simulation:
 
         server_clock = make_device_clock(
             SERVER_ID,
-            self.rng.child("clock", SERVER_ID),
+            self.rng.derive("clock", SERVER_ID),
             self.time,
             horizon_ms=scenario.horizon_ms,
             hostile=False,  # servers keep time; devices do not
@@ -219,7 +228,7 @@ class Simulation:
 
     def _schedule(self) -> None:
         scenario = self.scenario
-        rng = self.rng.child("schedule")
+        rng = self.rng.derive("schedule")
         horizon = scenario.horizon_ms
 
         for device in self.devices:
@@ -264,7 +273,7 @@ class Simulation:
 
     def _on_write(self, event: Event) -> None:
         del event
-        rng = self.rng.child("write", self.loop.processed)
+        rng = self.rng.derive("write", self.loop.processed)
         device = rng.choice(self.devices)
         if device.down:
             return
@@ -318,11 +327,11 @@ class Simulation:
         """
         if dest != SERVER_ID:
             return
-        rng = self.rng.child("window", source, self.loop.processed)
+        rng = self.rng.derive("window", source, self.loop.processed)
         self.loop.after(rng.integer(0, 5_000), "sim.sync", source)
 
     def _on_sync(self, event: Event) -> None:
-        rng = self.rng.child("sync", self.loop.processed)
+        rng = self.rng.derive("sync", self.loop.processed)
         device = (
             self.replicas[event.payload]
             if isinstance(event.payload, str)
