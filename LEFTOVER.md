@@ -100,14 +100,19 @@ The clock layer is done. The lattice layer is not.
 |---|---|---|
 | ~~1.0–1.17~~ | ~~All of Phase 1~~ | **Done.** HLC, five lattices, schema, review signals, conformance runners, 18 vectors. 138 tests green; laws verified at the 10,000-example gate budget. [Exit review](docs/phase-1-exit.md). |
 
-**Next: Phase 2 — the simulator.** 22 work items, timeboxed to four weeks. It is
-where "I believe this is correct" becomes "here is a search that failed to find a
-counterexample, and here is proof the search would have found one."
+### Phase 2 — three items remain
 
-⚠ Phase 1 surfaced the Phase 2 lesson three weeks early: mutation M4 passed the
-entire property suite because the strategies built values with the constructor and
-never called `remove()`. WI-2.9's scenario generator has the same failure mode at a
-much larger scale — generate by **driving operations**, not by constructing states.
+| WI | Item | Notes |
+|---|---|---|
+| 2.15 | Shrinking | Implemented, never exercised on a real failure — the three found so far were diagnosable directly |
+| **2.19** | **Million-schedule sweep** `[gate]` | **5,000 run, all green. The gate needs ~11.5h single-core or ~3h across the four nightly shards.** |
+| 2.21 | Phase 2 exit review | Blocked on 2.19 |
+
+⚠ **Throughput is 24 schedules/s against a 500/s target** — a 20× miss. Most of it
+is full-state sync serialisation, which is exactly the cost Phase 3's delta design
+removes (WI-3.1). The honest move is to run the gate as an overnight sharded job and
+re-measure after WI-3.1, rather than optimising a path that is about to be replaced.
+→ [docs/simulation-report.md](docs/simulation-report.md)
 
 ### Phases 2–6
 

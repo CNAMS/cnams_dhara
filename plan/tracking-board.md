@@ -16,12 +16,12 @@ Markers: `[gate]` phase exit depends on it · `[stretch]` cut first when slippin
 |---|---|---|---|---|
 | 0 — Conflict catalogue and spec | 1–2 | 15 | 13 | **exit blocked** — WI-0.0 and WI-0.14 |
 | 1 — Clocks and lattices | 3–5 | 18 | 18 | **criteria met, tag withheld** — see [exit review](../docs/phase-1-exit.md) |
-| 2 — The simulator | 6–9 | 22 | 0 | not started |
+| 2 — The simulator | 6–9 | 22 | 19 | in progress — million-schedule gate outstanding |
 | 3 — Delta sync and session protocol | 10–13 | 16 | 0 | not started |
 | 4 — Dart client and CGMS integration | 14–16 | 12 | 0 | not started |
 | 5 — Security and identity | 17–20 | 11 | 0 | not started |
 | 6 — Field deployment and write-up | 21–24 | 11 | 0 | not started |
-| **Total** | **24** | **105** | **31** | |
+| **Total** | **24** | **105** | **50** | |
 
 ---
 
@@ -77,27 +77,27 @@ skew · rationale written, not just the choice ·
 
 ## Phase 2 — The simulator `weeks 6–9`
 
-- [ ] **WI-2.0** Simulator architecture decision `[research]`
-- [ ] **WI-2.1** Determinism harness `[gate]`
-- [ ] **WI-2.2** Virtual clock with skew
-- [ ] **WI-2.3** Virtual network: delivery
-- [ ] **WI-2.4** Fault: partitions
-- [ ] **WI-2.5** Fault: loss, reordering, duplication
-- [ ] **WI-2.6** Fault: bandwidth caps and window closure
-- [ ] **WI-2.7** Virtual device replica
-- [ ] **WI-2.8** Virtual server replica
-- [ ] **WI-2.9** Scenario generator
-- [ ] **WI-2.10** Invariant: convergence `[gate]`
-- [ ] **WI-2.11** Invariant: no measurement lost `[gate]`
-- [ ] **WI-2.12** Invariants: monotonicity and idempotence
-- [ ] **WI-2.13** Crash injection
-- [ ] **WI-2.14** Seed sweep runner
-- [ ] **WI-2.15** Shrinking
-- [ ] **WI-2.16** Replay and tracing
-- [ ] **WI-2.17** The deliberate-bug experiment `[gate]` ⚠ the phase's whole point
-- [ ] **WI-2.18** Nightly CI and the regression corpus
-- [ ] **WI-2.19** The million-schedule sweep `[gate]`
-- [ ] **WI-2.20** Simulation report
+- [x] **WI-2.0** Simulator architecture decision `[research]`
+- [x] **WI-2.1** Determinism harness `[gate]`
+- [x] **WI-2.2** Virtual clock with skew
+- [x] **WI-2.3** Virtual network: delivery
+- [x] **WI-2.4** Fault: partitions
+- [x] **WI-2.5** Fault: loss, reordering, duplication
+- [x] **WI-2.6** Fault: bandwidth caps and window closure
+- [x] **WI-2.7** Virtual device replica
+- [x] **WI-2.8** Virtual server replica
+- [x] **WI-2.9** Scenario generator
+- [x] **WI-2.10** Invariant: convergence `[gate]`
+- [x] **WI-2.11** Invariant: no measurement lost `[gate]`
+- [x] **WI-2.12** Invariants: monotonicity and idempotence
+- [x] **WI-2.13** Crash injection
+- [x] **WI-2.14** Seed sweep runner
+- [ ] **WI-2.15** Shrinking — implemented, never exercised on a real failure
+- [x] **WI-2.16** Replay and tracing
+- [x] **WI-2.17** The deliberate-bug experiment `[gate]` ⚠ the phase's whole point
+- [x] **WI-2.18** Nightly CI and the regression corpus
+- [ ] **WI-2.19** The million-schedule sweep `[gate]` — **5,000 run; ~11.5h single-core for the gate**
+- [x] **WI-2.20** Simulation report
 - [ ] **WI-2.21** Phase 2 exit review `[gate]`
 
 **Exit gate:** 1,000,000 schedules green · all six mutations caught within 1,000
