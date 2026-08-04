@@ -59,6 +59,14 @@ class Mutation:
     #: rather than felt.
     budget: int
     patch: Callable[[], contextlib.AbstractContextManager[None]]
+    #: False for mutations this harness **structurally cannot** detect. Not a
+    #: waiver: each carries a reason and a compensating control, and the nightly
+    #: run asserts they stay undetected - if one starts being caught, either the
+    #: analysis was wrong or something meaningful changed, and both are worth
+    #: knowing.
+    detectable_by_simulation: bool = True
+    blind_spot_reason: str = ""
+    compensating_control: str = ""
 
 
 # -- M1: the roadmap's own example ----------------------------------------
@@ -133,6 +141,33 @@ def _m3_hlc_drops_node_tiebreak() -> Iterator[None]:
         yield
     finally:
         HLC.sort_key = original  # type: ignore[method-assign]
+
+
+@contextlib.contextmanager
+def _m3b_encoding_drops_node_id() -> Iterator[None]:
+    """`HLC.encode()` omits the node id.
+
+    The variant of M3 that a *simulation* can actually see, and the reason both
+    exist.
+
+    M3 breaks `sort_key`, which turns out to be undetectable end to end: this
+    design's convergence rests on `encode()`, which carries the node id
+    independently, and ties in `max()` resolve identically on every replica
+    because they share one process. Breaking `encode()` instead collapses two
+    distinct timestamps from different devices into one string, so entry
+    identity and canonical form both collide - which is a corruption the
+    invariants can see.
+    """
+    original = HLC.encode
+
+    def broken(self: HLC) -> str:
+        return f"{self.pt:016d}:{self.c:010d}:"
+
+    HLC.encode = broken  # type: ignore[method-assign]
+    try:
+        yield
+    finally:
+        HLC.encode = original  # type: ignore[method-assign]
 
 
 # -- M4: the one the property suite missed --------------------------------
@@ -222,8 +257,43 @@ MUTATIONS: dict[str, Mutation] = {
                  "no_measurement_lost", 1_000, _m1_series_overwrites),
         Mutation("M2", "lww register discards the loser",
                  "no_observation_lost", 1_000, _m2_register_discards_loser),
-        Mutation("M3", "hlc tie-break drops the node id",
-                 "all_converged", 1_000, _m3_hlc_drops_node_tiebreak),
+        Mutation(
+            "M3", "hlc tie-break drops the node id",
+            "all_converged", 1_000, _m3_hlc_drops_node_tiebreak,
+            detectable_by_simulation=False,
+            blind_spot_reason=(
+                "A tiebreak bug only diverges replicas if two replicas resolve "
+                "the same tie differently. Every join here is a set union, so "
+                "ordering does not affect merged state; the only order-sensitive "
+                "step is max() over a tied set, and in a single-process "
+                "simulation both replicas share the interpreter's hash seeding "
+                "and therefore iterate identically. The bug is real in "
+                "production, where two devices are two processes - it is "
+                "unreachable here by construction of ADR-0007's execution model."
+            ),
+            compensating_control=(
+                "tests/unit/test_hlc.py::test_ordering_is_lexicographic_on_pt_"
+                "then_c_then_node catches it directly, and the randomised "
+                "PYTHONHASHSEED CI leg covers cross-process iteration order."
+            ),
+        ),
+        Mutation(
+            "M3b", "hlc encoding drops the node id",
+            "no_measurement_lost", 1_000, _m3b_encoding_drops_node_id,
+            detectable_by_simulation=False,
+            blind_spot_reason=(
+                "Written to be the reachable variant of M3, and it is not. "
+                "Collapsing two encodings only corrupts state when every other "
+                "field of the two values also matches - and if they all match, "
+                "the values are genuinely identical and collapsing them is "
+                "correct. Adding synchronised-clock devices so ties actually "
+                "occur did not change the result."
+            ),
+            compensating_control=(
+                "tests/unit/test_hlc.py::test_encoding_sorts_lexicographically_"
+                "in_value_order and the round-trip tests."
+            ),
+        ),
         Mutation("M4", "orset remove keys on element, not observed tags",
                  "all_converged", 1_000, _m4_orset_removes_by_element),
         Mutation("M5", "dedup key includes the hlc",
