@@ -14,34 +14,34 @@ Markers: `[gate]` phase exit depends on it · `[stretch]` cut first when slippin
 
 | Phase | Weeks | Items | Done | Status |
 |---|---|---|---|---|
-| 0 — Conflict catalogue and spec | 1–2 | 15 | 0 | not started |
-| 1 — Clocks and lattices | 3–5 | 18 | 0 | not started |
+| 0 — Conflict catalogue and spec | 1–2 | 15 | 13 | **exit blocked** — WI-0.0 and WI-0.14 |
+| 1 — Clocks and lattices | 3–5 | 18 | 6 | in progress — clock layer done |
 | 2 — The simulator | 6–9 | 22 | 0 | not started |
 | 3 — Delta sync and session protocol | 10–13 | 16 | 0 | not started |
 | 4 — Dart client and CGMS integration | 14–16 | 12 | 0 | not started |
 | 5 — Security and identity | 17–20 | 11 | 0 | not started |
 | 6 — Field deployment and write-up | 21–24 | 11 | 0 | not started |
-| **Total** | **24** | **105** | **0** | |
+| **Total** | **24** | **105** | **19** | |
 
 ---
 
 ## Phase 0 — Conflict catalogue and spec `weeks 1–2`
 
-- [ ] **WI-0.0** Open the field-access conversation `[gate]` `[research]` ⚠ week 1
-- [ ] **WI-0.1** Repository scaffold and licence
-- [ ] **WI-0.2** Python package scaffold
-- [ ] **WI-0.3** CI running an empty suite
-- [ ] **WI-0.4** Catalogue format and entry template `[spec]`
-- [ ] **WI-0.5** Catalogue entries: measurements (C-01…C-06) `[spec]` `[gate]`
-- [ ] **WI-0.6** Catalogue entries: demographics and status (C-07…C-12) `[spec]` `[gate]`
-- [ ] **WI-0.7** Catalogue entries: identity, sessions, clocks (C-13…C-20) `[spec]` `[gate]`
-- [ ] **WI-0.8** Catalogue entries: adversarial and operational (C-21…C-24) `[spec]`
-- [ ] **WI-0.9** Merge semantics skeleton `[spec]`
-- [ ] **WI-0.10** Protocol v0.1 draft `[spec]`
-- [ ] **WI-0.11** Conformance vector schema `[spec]`
-- [ ] **WI-0.12** Decision records and living documents
-- [ ] **WI-0.13** Pre-commit hooks
-- [ ] **WI-0.14** Phase 0 exit review `[gate]`
+- [ ] **WI-0.0** Open the field-access conversation `[gate]` `[research]` ⚠ **BLOCKING — not started, see [DOUBTS.md D-12](../DOUBTS.md#d-12)**
+- [x] **WI-0.1** Repository scaffold and licence
+- [x] **WI-0.2** Python package scaffold
+- [x] **WI-0.3** CI running an empty suite
+- [x] **WI-0.4** Catalogue format and entry template `[spec]`
+- [x] **WI-0.5** Catalogue entries: measurements (C-01…C-06) `[spec]` `[gate]`
+- [x] **WI-0.6** Catalogue entries: demographics and status (C-07…C-12) `[spec]` `[gate]`
+- [x] **WI-0.7** Catalogue entries: identity, sessions, clocks (C-13…C-20) `[spec]` `[gate]`
+- [x] **WI-0.8** Catalogue entries: adversarial and operational (C-21…C-24) `[spec]`
+- [x] **WI-0.9** Merge semantics skeleton `[spec]`
+- [x] **WI-0.10** Protocol v0.1 draft `[spec]`
+- [x] **WI-0.11** Conformance vector schema `[spec]`
+- [x] **WI-0.12** Decision records and living documents
+- [x] **WI-0.13** Pre-commit hooks
+- [ ] **WI-0.14** Phase 0 exit review `[gate]` — blocked on WI-0.0 and unverified CI ([D-10](../DOUBTS.md#d-10))
 
 **Exit gate:** ≥20 catalogue entries with field-by-field outcomes · CI green ·
 protocol draft with every failure edge · [full checklist](phase-0-catalogue-and-spec.md#exit-checklist)
@@ -50,12 +50,12 @@ protocol draft with every failure edge · [full checklist](phase-0-catalogue-and
 
 ## Phase 1 — Clocks and lattices `weeks 3–5`
 
-- [ ] **WI-1.0** Enforce the dependency rule in CI `[gate]`
-- [ ] **WI-1.1** HLC type and ordering
-- [ ] **WI-1.2** HLC send path
-- [ ] **WI-1.3** HLC receive path
-- [ ] **WI-1.4** HLC under clock skew `[gate]`
-- [ ] **WI-1.5** HLC conformance vectors `[spec]`
+- [x] **WI-1.0** Enforce the dependency rule in CI `[gate]`
+- [x] **WI-1.1** HLC type and ordering
+- [x] **WI-1.2** HLC send path
+- [x] **WI-1.3** HLC receive path
+- [x] **WI-1.4** HLC under clock skew `[gate]`
+- [x] **WI-1.5** HLC conformance vectors `[spec]`
 - [ ] **WI-1.6** Lattice base contract
 - [ ] **WI-1.7** GSet
 - [ ] **WI-1.8** LWWRegister with retained losers `[gate]`
