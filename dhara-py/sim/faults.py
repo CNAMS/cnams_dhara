@@ -123,16 +123,16 @@ def _m3_hlc_drops_node_tiebreak() -> Iterator[None]:
     apply them in different orders, and never converge - while every
     single-replica test still passes.
     """
-    original = HLC._key
+    original = HLC.sort_key
 
     def broken(self: HLC) -> tuple[int, int, str]:
         return (self.pt, self.c, "")
 
-    HLC._key = broken  # type: ignore[method-assign]
+    HLC.sort_key = broken  # type: ignore[method-assign]
     try:
         yield
     finally:
-        HLC._key = original  # type: ignore[method-assign]
+        HLC.sort_key = original  # type: ignore[method-assign]
 
 
 # -- M4: the one the property suite missed --------------------------------

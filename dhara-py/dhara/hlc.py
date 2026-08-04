@@ -88,19 +88,17 @@ class HLC:
         """
         return (self.pt, self.c, self.node_id)
 
-    _key = sort_key
-
     def __lt__(self, other: HLC) -> bool:
-        return self._key() < other._key()
+        return self.sort_key() < other.sort_key()
 
     def __le__(self, other: HLC) -> bool:
-        return self._key() <= other._key()
+        return self.sort_key() <= other.sort_key()
 
     def __gt__(self, other: HLC) -> bool:
-        return self._key() > other._key()
+        return self.sort_key() > other.sort_key()
 
     def __ge__(self, other: HLC) -> bool:
-        return self._key() >= other._key()
+        return self.sort_key() >= other.sort_key()
 
     # -- encoding ---------------------------------------------------------
 
