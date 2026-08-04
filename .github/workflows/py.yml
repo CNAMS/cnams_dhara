@@ -47,6 +47,10 @@ jobs:
       - name: Install
         run: uv sync --all-groups
 
+      - name: Dependency rule
+        # The engine may not know what a record represents. See ADR-0001.
+        run: python3 ../scripts/check_no_domain_imports.py
+
       - name: Lint
         run: uv run ruff check .
 
