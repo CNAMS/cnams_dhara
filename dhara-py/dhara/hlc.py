@@ -77,8 +77,18 @@ class HLC:
 
     # -- ordering ---------------------------------------------------------
 
-    def _key(self) -> tuple[int, int, str]:
+    def sort_key(self) -> tuple[int, int, str]:
+        """The single definition of HLC order.
+
+        Public and used by every caller that needs to order by causal time -
+        the register's current value, the series' entry ordering, the
+        comparison operators below. It was written out inline in three places
+        before, which is three copies of one rule that can drift apart, and it
+        also meant a mutation of the ordering only reached one of them.
+        """
         return (self.pt, self.c, self.node_id)
+
+    _key = sort_key
 
     def __lt__(self, other: HLC) -> bool:
         return self._key() < other._key()

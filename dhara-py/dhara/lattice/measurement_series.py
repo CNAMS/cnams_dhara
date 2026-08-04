@@ -152,7 +152,7 @@ class MeasurementSeries:
         worker-supplied and may be wrong (C-05). Display order is the consumer's
         choice; this order is the one that is deterministic on every replica.
         """
-        return tuple(sorted(self.entries_, key=lambda e: (e.hlc.pt, e.hlc.c, e.hlc.node_id)))
+        return tuple(sorted(self.entries_, key=lambda e: e.hlc.sort_key()))
 
     @property
     def current(self) -> tuple[Entry, ...]:

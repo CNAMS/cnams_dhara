@@ -60,8 +60,12 @@ class Observation:
             )
 
     def sort_key(self) -> tuple[int, int, str]:
-        """HLC order, with `node_id` as the tiebreak that makes it total."""
-        return (self.hlc.pt, self.hlc.c, self.hlc.node_id)
+        """HLC order, with `node_id` as the tiebreak that makes it total.
+
+        Delegates rather than restating the tuple: one definition of the order,
+        in `HLC.sort_key`.
+        """
+        return self.hlc.sort_key()
 
     def canonical(self) -> tuple[object, ...]:
         return (self.hlc.encode(), self.author, *canonical_scalar(self.value))
