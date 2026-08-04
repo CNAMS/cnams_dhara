@@ -1,0 +1,41 @@
+[project]
+name = "dhara"
+version = "0.0.0"
+description = "Offline-first sync engine: the conflict-resolution layer generic sync engines leave to you"
+readme = "../README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Pranav Shukla" }]
+keywords = ["crdt", "sync", "offline-first", "local-first", "lattice"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+]
+
+# Deliberately empty. dhara's core is pure Python with no runtime
+# dependencies: no I/O, no clock reads, no network. Anything that needs a
+# dependency is either the simulator (dev) or belongs in the consumer.
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/CNAMS/cnams_dhara"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dhara"]
