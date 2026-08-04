@@ -97,8 +97,15 @@ def _series_signals(name: str, series: MeasurementSeries) -> list[ReviewSignal]:
     # C-01: two measurements for one field on one day. Grouped by the date part
     # of `taken_at` as the schema declares it, never by either device's local
     # clock - two devices can disagree about what day it is.
+    #
+    # Counts **current** entries only, not every entry. A correction chain
+    # (C-03) has three entries on one day and one current value, and it is one
+    # actor working carefully rather than two actors disagreeing - the
+    # catalogue says C-03 emits nothing. Counting every entry would fire on
+    # every correction, which is both wrong and the fastest way to make
+    # reviewers stop reading the queue.
     by_day: dict[str, int] = {}
-    for entry in series.entries:
+    for entry in series.current:
         day = entry.taken_at.split("T", 1)[0]
         by_day[day] = by_day.get(day, 0) + 1
     if any(count > 1 for count in by_day.values()):
