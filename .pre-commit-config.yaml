@@ -1,0 +1,65 @@
+# Pre-commit hooks.
+#
+# Budget: under 5 seconds total on a warm cache. Anything slower gets skipped
+# with `-n`, and a hook that is routinely skipped is worse than no hook, because
+# it creates confidence it has not earned.
+#
+#   pip install pre-commit && pre-commit install --install-hooks
+#   pre-commit install --hook-type commit-msg
+
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=256]
+        # A 400 KB image is the failure this project is about. It should not be
+        # in the repository either.
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^dhara-py/
+      - id: ruff-format
+        files: ^dhara-py/
+
+  - repo: local
+    hooks:
+      # ------------------------------------------------------------------
+      # The dependency rule, mechanically. → ADR-0001
+      # ------------------------------------------------------------------
+      - id: no-domain-imports
+        name: no domain vocabulary in the engine or the vectors
+        entry: python3 scripts/check_no_domain_imports.py
+        language: system
+        pass_filenames: false
+        files: ^(dhara-py/|dhara-dart/|spec/conformance/)
+
+      # ------------------------------------------------------------------
+      # Commit messages. → plan/commit-conventions.md
+      # ------------------------------------------------------------------
+      - id: conventional-commit
+        name: commit message follows the convention
+        entry: python3 scripts/check_commit_message.py
+        language: system
+        stages: [commit-msg]
+
+      # ------------------------------------------------------------------
+      # Authorship. This is the mechanical version of the rule in
+      # commit-conventions.md section 6, and it is far cheaper than a history
+      # rewrite after the branch is public.
+      # ------------------------------------------------------------------
+      - id: no-attribution-trailers
+        name: no co-author or generated-by trailers
+        entry: python3 scripts/check_no_attribution_trailers.py
+        language: system
+        stages: [commit-msg]
