@@ -14,6 +14,8 @@ scenario generator less adversarial breaks no test except this one.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from sim.faults import MUTATIONS, Mutation, apply_mutation
@@ -22,8 +24,9 @@ from sim.scenario import Simulation, generate
 pytestmark = [pytest.mark.sim, pytest.mark.slow]
 
 #: Enough to catch every detectable mutation with margin, small enough for the
-#: push pipeline. The nightly run uses the full 1,000.
-PUSH_BUDGET = 40
+#: push pipeline. The nightly run uses the full 1,000 - same tiering as the
+#: property-test budget and the seed corpus, for the same reason.
+PUSH_BUDGET = int(os.environ.get("DHARA_MUTATION_BUDGET", "40"))
 
 DETECTABLE = [m for m in MUTATIONS.values() if m.detectable_by_simulation]
 BLIND = [m for m in MUTATIONS.values() if not m.detectable_by_simulation]
