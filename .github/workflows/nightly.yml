@@ -33,3 +33,50 @@ jobs:
 
       - name: Conformance vectors
         run: uv run pytest -q -m conformance
+
+  mutation-experiment:
+    # Harness sensitivity decays and nothing else reports it. A refactor that
+    # makes the scenario generator less adversarial breaks no test except this
+    # one - so it runs every night at the full budget, not once at phase exit.
+    # See docs/deliberate-bug-experiment.md.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --all-groups
+
+      - name: Deliberate-bug experiment at the full budget
+        env:
+          DHARA_MUTATION_BUDGET: "1000"
+        run: uv run pytest -q tests/sim/test_mutations.py
+
+  seed-sweep:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --all-groups
+
+      - name: Sweep shard ${{ matrix.shard }}
+        run: |
+          uv run python -m sim.runner \
+            --start $(( ${{ matrix.shard }} * 25000 + 1 )) \
+            --seeds 25000 \
+            --progress 5000
+
+      - name: Upload failing scenarios
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-failures-${{ matrix.shard }}
+          path: dhara-py/sim-out/

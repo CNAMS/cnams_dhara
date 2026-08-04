@@ -1,0 +1,12 @@
+# Regression corpus: every seed the simulator has ever failed on.
+#
+# The rule, so it is never negotiable: when the simulator finds a bug, its
+# shrunk seed is appended here in the same commit as the fix, with a `Seed:`
+# footer on that commit. This corpus runs on every push and costs seconds.
+#
+# It is the most valuable file in this repository by month four, and it costs
+# nothing to maintain. `git log --grep="Seed:"` is the list of every bug the
+# harness caught.
+#
+# Format: <seed> <preset>  # what it caught
+49 hostile  # element-level removals_are_honoured fired on a legitimate concurrent unobserved add (C-14); invariant was too coarse, now checked at tag level
