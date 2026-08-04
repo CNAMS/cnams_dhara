@@ -261,6 +261,14 @@ class Replica:
         assert isinstance(or_set, ORSet)
         if element not in or_set.elements:
             return
+        # The tags this remove actually observed. Recorded because that - not
+        # the element - is what the removal guarantees: a concurrent add whose
+        # tag was never seen legitimately survives (C-14). An invariant phrased
+        # as "the element is gone" would be wrong, and would fire on correct
+        # behaviour.
+        observed = tuple(
+            sorted(t.tag.encode() for t in or_set.adds if t.element == element)
+        )
         self.records[record_id] = Record(
             self.schema, {**record.state, field_name: or_set.remove(element)}
         )
@@ -272,7 +280,7 @@ class Replica:
                 field=field_name,
                 kind="tag_remove",
                 hlc=self.clock.send(),
-                detail=(element,),
+                detail=(element, observed),
                 at=at,
             )
         )

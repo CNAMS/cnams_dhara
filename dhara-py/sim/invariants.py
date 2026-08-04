@@ -141,6 +141,110 @@ def no_measurement_lost(oplog: OpLog, replicas: Sequence[Replica]) -> list[Viola
     return violations
 
 
+def no_phantom_measurements(oplog: OpLog, replicas: Sequence[Replica]) -> list[Violation]:
+    """No replica holds a measurement nobody wrote.
+
+    **The twin of `no_measurement_lost`, and it was missing.** The headline
+    property has two directions - nothing disappears, and nothing is invented -
+    and only the first was implemented. Mutation M5 (a dedup key that includes
+    the HLC) survived 1,000 seeds producing 11 entries where 10 distinct
+    readings existed, because every expected entry was present and nothing
+    checked the converse.
+
+    Inventing clinical data is at least as bad as losing it: a phantom weighing
+    is a data point a supervisor will act on, and it never happened.
+    """
+    violations: list[Violation] = []
+    live = [r for r in replicas if not r.down]
+    if not live:
+        return []
+
+    for record_id in sorted(oplog.record_ids()):
+        for field_name in live[0].schema.field_names:
+            expected = oplog.measurement_keys(record_id, field_name)
+            for replica in live:
+                record = replica.records.get(record_id)
+                series = None if record is None else record.state.get(field_name)
+                if not isinstance(series, MeasurementSeries):
+                    continue
+                present = {(e.taken_at, e.recorded_by, e.value) for e in series.entries}
+                invented = present - expected
+                if invented:
+                    violations.append(
+                        Violation(
+                            "no_phantom_measurements",
+                            f"{replica.replica_id} holds {len(invented)} measurement(s) "
+                            f"nobody wrote in {record_id!r}.{field_name!r}: "
+                            f"{sorted(invented)[:3]}",
+                        )
+                    )
+                # Distinct keys and entries must be one to one. Two entries
+                # sharing a key means dedup failed even when both keys were
+                # legitimately written.
+                if len(series.entries) != len(present):
+                    violations.append(
+                        Violation(
+                            "no_phantom_measurements",
+                            f"{replica.replica_id} has {len(series.entries)} entries "
+                            f"for only {len(present)} distinct readings in "
+                            f"{record_id!r}.{field_name!r}; dedup did not collapse them",
+                        )
+                    )
+    return violations
+
+
+def removals_are_honoured(oplog: OpLog, replicas: Sequence[Replica]) -> list[Violation]:
+    """An element removed after being observed does not come back.
+
+    Added because nothing checked removal semantics at all. Mutation M4 - an
+    OR-Set remove that deletes adds instead of recording observed tags -
+    survived, because deleting the add locally converges perfectly well: the
+    peer's copy is re-merged in and the element quietly resurrects.
+
+    Resurrection is the failure the observed-remove design exists to prevent,
+    and it was the one thing the invariants did not look for.
+
+    ⚠ Checked at **tag** level, not element level. A removal guarantees the
+    absence of the adds it observed - nothing more. A concurrent add whose tag
+    the remove never saw legitimately survives, and so does a later re-add
+    (C-14). An element-level invariant fires on both of those, which are correct
+    behaviour; this one was written that way first and seed 49 caught it.
+    """
+    violations: list[Violation] = []
+    live = [r for r in replicas if not r.down]
+    if not live:
+        return []
+
+    removed: dict[tuple[str, str], set[str]] = {}
+    for op in oplog.entries:
+        if op.kind == "tag_remove" and len(op.detail) == 2:
+            removed.setdefault((op.record_id, op.field), set()).update(op.detail[1])
+
+    for (record_id, field_name), tags in sorted(removed.items()):
+        if not tags:
+            continue
+        for replica in live:
+            record = replica.records.get(record_id)
+            or_set = None if record is None else record.state.get(field_name)
+            if or_set is None or not hasattr(or_set, "adds"):
+                continue
+            live_tags = {
+                t.tag.encode()
+                for t in or_set.adds
+                if t.tag not in or_set.removed_tags
+            }
+            resurrected = tags & live_tags
+            if resurrected:
+                violations.append(
+                    Violation(
+                        "removals_are_honoured",
+                        f"{replica.replica_id} resurrected {len(resurrected)} "
+                        f"removed tag(s) in {record_id!r}.{field_name!r}",
+                    )
+                )
+    return violations
+
+
 def no_observation_lost(oplog: OpLog, replicas: Sequence[Replica]) -> list[Violation]:
     """Every register value anyone wrote is still observable.
 
@@ -341,6 +445,8 @@ def check_all(replicas: Sequence[Replica], oplog: OpLog) -> list[Violation]:
         *all_converged(replicas),
         *derived_views_agree(replicas),
         *no_measurement_lost(oplog, replicas),
+        *no_phantom_measurements(oplog, replicas),
+        *removals_are_honoured(oplog, replicas),
         *no_observation_lost(oplog, replicas),
         *hlc_causality_respected(oplog),
         *no_duplicate_operation_ids(oplog),
