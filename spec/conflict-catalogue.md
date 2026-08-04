@@ -1,6 +1,6 @@
 # Conflict catalogue
 
-**Status:** Phase 0 deliverable · **Entries:** 12 of 24 · **Source:** roadmap §8, Phase 0
+**Status:** Phase 0 deliverable · **Entries:** 20 of 24 · **Source:** roadmap §8, Phase 0
 
 Every concurrent-edit scenario that can occur in a real deployment, with the correct
 merged outcome written down before any merge code exists.
@@ -569,3 +569,362 @@ scenario unrepresentable, and the bytes saved are not worth it.
 **Vector** `merge/c12_clear_versus_update.json`
 
 **Open** None.
+
+---
+
+### C-13 — The same child is registered independently at two centres
+
+**Setup**
+A family lives near a boundary. Centre 1's worker registers the child; Centre 2's
+worker, on a different device with no connectivity, registers what is in fact the
+same child. Two UUIDs now exist for one human being, each accumulating measurements.
+
+**Concurrency**
+Fully concurrent, and **not detectable at write time** — neither device can query the
+other or the server. Poshan Tracker leans on Aadhaar-based verification to eliminate
+duplicates, which requires connectivity, which is exactly the part that fails
+(roadmap §6.4).
+
+**Naive outcome**
+Two failure shapes:
+
+- **Reject the second registration** on a server-side uniqueness constraint. The
+  worker's whole session fails, and she is told a child in front of her does not
+  exist. Her data is lost or stuck.
+- **Accept both and never reconcile.** The child has two growth curves, each with
+  half the data points. Neither shows the actual trajectory, and malnutrition
+  detection — the entire purpose — fails silently.
+
+**Desired outcome**
+
+| Stage | State |
+|---|---|
+| At write | Both registrations accepted unconditionally. Locally generated UUIDs never collide and never block. |
+| Server-side | The two records are surfaced as duplicate candidates via a schema-declared match key |
+| Decision | **A supervisor decides.** The engine never auto-merges two records into one person. |
+| After merge | Field-wise join of both records. **No measurement from either side is lost.** |
+| On devices | The losing UUID gets a tombstone carrying a forwarding pointer to the survivor; local references resolve through it |
+| Offline devices | A device that was offline throughout, holding operations against the losing UUID, applies them to the survivor on reconnect **without error** |
+
+**Lattice** Accept-then-reconcile (roadmap §6.4(a)) plus tombstone-with-forwarding-
+pointer. Forwarding pointers are themselves a lattice so concurrent merge decisions
+converge.
+
+⚠ **The match key is opaque to `dhara`.** Deciding whether two records are the same
+child requires names, dates of birth, and mother's name — concepts this repository is
+not allowed to know. The consumer computes a match key; `dhara` indexes it, surfaces
+collisions, and provides the machinery to act on a decision.
+
+**Review signal** `duplicate_candidate`. Never auto-merged: merging two children who
+are not the same child produces a corrupted longitudinal record for two real people
+and is not recoverable by the worker who notices.
+
+**Vector** Phase 5 — requires identity machinery. `sessions/c13_duplicate_registration.json`
+
+**Open** Q5 — whether ICDS requires an Aadhaar-adjacent identity path, and whether
+that constrains this design.
+
+---
+
+### C-14 — A risk flag is added on one device and removed on another
+
+**Setup**
+Replica A adds the flag `referred_to_nrc` to a child. Replica B, concurrently and
+without having seen the add, removes a stale flag set from a previous visit —
+including, in its view of the set, nothing about A's new flag.
+
+**Concurrency**
+Fully concurrent. B's remove **did not observe** A's add.
+
+**Naive outcome**
+A set represented as a LWW register over the whole set value: B's version of the set
+wins or loses wholesale. If B wins, A's referral flag vanishes — a child referred for
+acute malnutrition silently loses the referral.
+
+Even a naive add/remove set that keys removes on the element rather than on observed
+tags gets this wrong: B's remove of "everything I can see" erases an add it never saw.
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `set_a` | Contains `referred_to_nrc` — **the add survives**, because the remove did not observe it |
+| flags B did remove | Absent, correctly |
+
+**Lattice** `ORSet`. Each add carries a unique tag; a remove carries the **set of tags
+it observed**. A tag not observed by a remove survives.
+
+**Review signal** None. This is the observed-remove semantics working as designed, not
+an ambiguity.
+
+⚠ Sequential add-then-remove on one device must still remove (the remove observed the
+add), and re-add after remove must be observable. All three cases are distinct and all
+three are tested.
+
+**Vector** `merge/c14_concurrent_add_unobserved_remove.json`
+
+**Open** Q2 — tombstone (observed-tag) retention. Tags cannot be garbage-collected
+while any replica may still be holding an unsynced remove referencing them.
+
+---
+
+### C-15 — A device's clock is three days behind
+
+**Setup**
+A phone's clock was set by hand and is three days behind every other device. The
+worker uses it normally for a week, recording measurements and demographic edits.
+Then she syncs.
+
+**Concurrency**
+Mixed. Some of her operations are genuinely concurrent with others' work; some
+causally follow operations she received.
+
+**Naive outcome**
+With wall-clock timestamps, **every one of her edits loses every conflict**, for a
+week, because every other device's timestamps are larger. She did her job; the
+system discards her work systematically and silently. She has no way to detect it and
+no way to fix it.
+
+This is the failure mode roadmap §6.1 warns about: *this is where most homegrown sync
+layers quietly corrupt themselves.*
+
+**Desired outcome**
+
+| Property | Requirement |
+|---|---|
+| Causal ordering | Preserved exactly. If her operation causally follows another, its HLC is greater. |
+| Concurrent operations | Ordered deterministically and identically on every replica |
+| Systematic loss | **None.** No operation loses a conflict *solely* because its originating device's clock was behind. |
+| Counter growth | The HLC logical counter stays bounded by messages-per-physical-tick, not by total message count |
+
+**Lattice** Not a lattice property — this is the hybrid logical clock (roadmap §6.1)
+underneath every lattice.
+
+**Review signal** None from the merge. A large sustained device-clock offset is worth
+surfacing operationally, but that is a telemetry concern, not a merge signal.
+
+⚠ Measurements taken on this device carry `taken_at` values three days in the past.
+That is a *display and clinical* problem distinct from ordering, and it is C-05's
+concern.
+
+**Vector** `hlc/c15_three_day_lag.json`
+
+**Open** None.
+
+---
+
+### C-16 — A device clock jumps forward two days, then back
+
+**Setup**
+A phone's battery dies. On restart the clock defaults to a wrong value two days in
+the future. The worker records data. Later the clock syncs to network time and jumps
+back.
+
+**Concurrency**
+Not the issue. The issue is one device's own timeline moving non-monotonically.
+
+**Naive outcome**
+Two distinct corruptions:
+
+- Operations issued during the forward excursion carry timestamps that dominate
+  everything for the next two days. Every other device's subsequent work loses to
+  them.
+- After the jump back, the device issues timestamps **smaller than ones it has
+  already issued**. Its own operations are then unorderable against each other, and a
+  replica applying them can end up with a state that depends on delivery order.
+
+**Desired outcome**
+
+| Property | Requirement |
+|---|---|
+| Own HLCs | Strictly monotonic across the jump. The device never issues an HLC ≤ one it has already issued. |
+| Jump back | Absorbed by the logical counter; the physical component never regresses |
+| Jump forward | Bounded in effect. Operations after the correction still order after the excursion's operations, which is causally correct. |
+| Convergence | Unaffected |
+
+**Lattice** HLC.
+
+**Review signal** None from the merge.
+
+⚠ A forward jump is **not** fully recoverable: operations issued during the excursion
+keep their inflated physical component forever, because HLC's physical component
+cannot regress without breaking monotonicity. Their causal ordering is right; their
+apparent chronology is wrong. This is an accepted limitation of HLC and is recorded
+here rather than discovered later.
+
+**Vector** `hlc/c16_clock_jump_forward_then_back.json`
+
+**Open** None.
+
+---
+
+### C-17 — A worker's session expires mid-sync and another worker logs in
+
+**Setup**
+Worker `w1` is syncing on the shared centre phone. Her session token expires
+mid-transfer. Worker `w2` picks up the phone and logs in to record her own visits.
+
+**Concurrency**
+Not a data conflict. This is a **provenance and durability** scenario.
+
+**Naive outcome**
+Three real failures, all reported in the field:
+
+- The partial sync is discarded and restarts from zero on the next attempt — on a
+  90-second window, that means it may never complete.
+- `w1`'s unsynced operations are attributed to `w2`, because attribution is taken
+  from the current session rather than recorded at write time. A measurement is then
+  credited to a worker who did not take it.
+- `w1`'s outbox is cleared on logout, and her unsynced work is gone.
+
+**Desired outcome**
+
+| Property | Requirement |
+|---|---|
+| Partial progress | Durable. Resumes from the last acknowledged chunk, under `w2`'s session. |
+| Attribution | Every operation carries the worker who **made** it, fixed at write time and never rewritten |
+| `w1`'s outbox | Intact and syncable, regardless of who is currently logged in |
+| Scoping | `w2` cannot read `w1`'s unsynced record contents |
+
+**Lattice** None. Session and store layer, Phase 3 and Phase 5.
+
+**Review signal** None. Logged to the audit trail.
+
+⚠ Recorded worker identity is a **clinical provenance fact** — who took this
+measurement — not an access-control token. It must never be rewritten during
+reconciliation, even where doing so would simplify state.
+
+**Vector** Phase 3 — `sessions/c17_session_expiry_midsync.json`
+
+**Open** None.
+
+---
+
+### C-18 — A photo is uploaded from device A while metadata is edited on device B
+
+**Setup**
+Replica A attaches a 400 KB photograph to a record. Replica B, concurrently, edits
+that record's demographic fields. Both are on 2G.
+
+**Concurrency**
+Concurrent, different fields — but the sizes differ by two orders of magnitude.
+
+**Naive outcome**
+The photo and the metadata travel in one changeset. On a 90-second, 20 kbps window
+the photo does not complete, so the whole changeset does not commit, so **the 200
+bytes of demographic edits do not land either** — window after window.
+
+Roadmap §6.3 names this as *the single most common real-world failure*: a 400 KB image
+blocking 2 KB of growth data.
+
+**Desired outcome**
+
+| Property | Requirement |
+|---|---|
+| Record metadata | Syncs in the critical lane. Complete, valid and mergeable **without the blob present.** |
+| Blob | Content-addressed, referenced by hash, travels in the bulk lane |
+| Merge | B's metadata edits merge on arrival, not blocked on A's bytes |
+| Blob arrival | Later, possibly many windows later, without re-sending the metadata |
+
+**Lattice** Field-wise join for metadata; blobs are opaque content-addressed objects
+outside the lattice system entirely.
+
+**Review signal** None.
+
+⚠ `dhara` never compresses, resizes or inspects an image — that requires knowing what
+the image is *for*. It moves opaque bytes with a priority.
+
+**Vector** Phase 3 — `sessions/c18_blob_metadata_lanes.json`
+
+**Open** None. Resolves open question Q4.
+
+---
+
+### C-19 — A server-side bulk correction lands while a device is offline
+
+**Setup**
+An administrator runs a bulk correction on the server — fixing a mis-keyed centre
+code across 200 records, say. Device D has been offline for two weeks and holds its
+own edits to some of those records.
+
+**Concurrency**
+The bulk correction is concurrent with D's edits.
+
+**Naive outcome**
+Two shapes:
+
+- The bulk correction is applied as a privileged out-of-band write that bypasses the
+  operation log. D reconnects, its version vector shows nothing new, and it never
+  learns about the correction — or worse, it pushes its stale value and silently
+  reverts the correction on the server.
+- The correction wins everywhere by virtue of being "from the server", discarding
+  two weeks of a worker's edits.
+
+**Desired outcome**
+
+| Property | Requirement |
+|---|---|
+| The correction | **Ordinary operations**, with server provenance, in the operation log, carrying HLCs like any other |
+| Server authority | None special. The server is a full replica applying the same joins. |
+| D's edits | Merge by the ordinary field-wise rules. On the same field, `LWWRegister` with both retained. |
+| Silent reversion | Impossible — the correction is causally visible to D on reconnect |
+
+**Lattice** Ordinary field-wise join. This entry exists to forbid a *shortcut*, not to
+introduce a mechanism.
+
+**Review signal** `concurrent_demographic_edit` where a bulk correction and a device
+edit touch the same field.
+
+⚠ A bulk correction touching 200 records generates 200 operations, all of which every
+offline device must eventually receive. On a 20 kbps link this is a real bandwidth
+event. It belongs in the critical lane but should be rate-limited by the server rather
+than pushed as one burst.
+
+**Vector** `merge/c19_server_bulk_correction.json`
+
+**Open** None.
+
+---
+
+### C-20 — A replica returns after six months against tombstone GC
+
+**Setup**
+Device D goes offline for six months — a centre closes, a phone sits in a drawer.
+During that time, flags are removed from records via the OR-Set, records are deleted
+and tombstoned, and the server garbage-collects tombstones and observed tags older
+than its retention window. D reconnects.
+
+**Concurrency**
+D's six-month-old state is concurrent with everything that happened since.
+
+**Naive outcome**
+If tombstones were collected while D still held elements they cover, D's state
+re-introduces them: **deleted records resurrect and removed flags reappear**. A child
+a supervisor deliberately removed comes back. A referral that was withdrawn is
+active again.
+
+If tombstones are never collected, the tombstone set grows without bound on a 2GB
+device — which fails the same user a different way.
+
+**Desired outcome**
+
+| Property | Requirement |
+|---|---|
+| Convergence | D converges with the server, in both directions |
+| Resurrection | **None.** No deleted record and no removed flag returns. |
+| D's own work | Fully preserved. Six months of measurements sync intact. |
+| Bound | Tombstone storage stays bounded on the device |
+
+**Lattice** `ORSet` observed tags plus record tombstones, with a retention policy.
+
+**Review signal** None if handled correctly. A replica arriving with state older than
+the retention window is a **detectable operational condition** and must fail loudly —
+`stale_replica_beyond_retention` — rather than silently resurrecting data.
+
+**Vector** `sessions/c20_six_month_replica.json`
+
+**Open** **Q2 — the retention period is unresolved and must not be guessed.** Working
+position: retain at least as long as the revocation validity period (90 days), since
+a device cannot usefully be offline longer than that anyway — its read key has
+expired. That coupling is convenient and possibly too convenient; it needs checking
+against real time-since-last-sync data from Phase 6 before being committed to.
