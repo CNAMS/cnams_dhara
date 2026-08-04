@@ -1,0 +1,19 @@
+{
+  "name": "c01_concurrent_measurements_same_day",
+  "kind": "merge",
+  "catalogue": ["C-01"],
+  "phase": 1,
+  "description": "Two actors record a measurement for the same subject on the same morning. Both readings are retained and neither supersedes the other. Under LWW one is silently lost, which is the failure this whole project exists to fix.",
+  "schema": { "name": "bench", "fields": [{ "name": "m_a", "lattice": "MeasurementSeries", "scale": 1 }] },
+  "replicas": {
+    "A": { "m_a": [{ "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] }] },
+    "B": { "m_a": [{ "value": 94, "taken_at": "2026-05-01T11:40", "recorded_by": "s1", "hlc": [1000, 0, "dev_b"] }] }
+  },
+  "expected": {
+    "m_a": [
+      { "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] },
+      { "value": 94, "taken_at": "2026-05-01T11:40", "recorded_by": "s1", "hlc": [1000, 0, "dev_b"] }
+    ]
+  },
+  "expected_signals": [{ "code": "multiple_weights_same_day", "fields": ["m_a"] }]
+}

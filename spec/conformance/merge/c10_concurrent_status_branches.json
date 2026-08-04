@@ -1,0 +1,14 @@
+{
+  "name": "c10_concurrent_status_branches",
+  "kind": "merge",
+  "catalogue": ["C-10"],
+  "phase": 1,
+  "description": "Both replicas start from the same state and move to different ones. The join is total and deterministic so the engine needs no help - but two actors disagreeing about a record's state is an operational fact somebody should see. The important property is not which value wins; it is that the same value wins on every replica, derived from a declared order rather than from wall-clock timing.",
+  "schema": {
+    "name": "bench",
+    "fields": [{ "name": "st_a", "lattice": "StatusLattice", "order": ["s0", "s1", "s2", "s3"] }]
+  },
+  "replicas": { "A": { "st_a": "s1" }, "B": { "st_a": "s2" } },
+  "expected": { "st_a": "s2" },
+  "expected_signals": []
+}

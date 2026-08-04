@@ -1,0 +1,14 @@
+{
+  "name": "c09_terminal_status_wins",
+  "kind": "merge",
+  "catalogue": ["C-09"],
+  "phase": 1,
+  "description": "A record is moved to a terminal state on one replica and back to an earlier state on another. The declared order decides, not the clock. Under LWW the outcome would depend on which device had the more accurate clock, and the same two operations in the other order would give the opposite answer.",
+  "schema": {
+    "name": "bench",
+    "fields": [{ "name": "st_a", "lattice": "StatusLattice", "order": ["s0", "s1", "s2", "s3"] }]
+  },
+  "replicas": { "A": { "st_a": "s3" }, "B": { "st_a": "s1" } },
+  "expected": { "st_a": "s3" },
+  "expected_signals": []
+}

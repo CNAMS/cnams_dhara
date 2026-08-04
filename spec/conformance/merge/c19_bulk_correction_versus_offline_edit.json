@@ -1,0 +1,21 @@
+{
+  "name": "c19_bulk_correction_versus_offline_edit",
+  "kind": "merge",
+  "catalogue": ["C-19"],
+  "phase": 1,
+  "description": "A server-originated bulk correction and an offline device's edit to the same register. This entry exists to forbid a shortcut rather than to introduce a mechanism: the correction is ordinary operations with server provenance, carrying HLCs like any other, and the server holds no special authority. Both values are retained and the disagreement is surfaced.",
+  "schema": { "name": "bench", "fields": [{ "name": "d_a", "lattice": "LWWRegister" }] },
+  "replicas": {
+    "A": { "d_a": { "value": "server_corrected", "hlc": [1002, 0, "server"], "author": "admin", "history": [] } },
+    "B": { "d_a": { "value": "device_edited", "hlc": [1001, 0, "dev_b"], "author": "w1", "history": [] } }
+  },
+  "expected": {
+    "d_a": {
+      "value": "server_corrected",
+      "hlc": [1002, 0, "server"],
+      "author": "admin",
+      "history": [{ "value": "device_edited", "hlc": [1001, 0, "dev_b"], "author": "w1" }]
+    }
+  },
+  "expected_signals": [{ "code": "concurrent_demographic_edit", "fields": ["d_a"] }]
+}

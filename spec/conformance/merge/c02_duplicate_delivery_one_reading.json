@@ -1,0 +1,16 @@
+{
+  "name": "c02_duplicate_delivery_one_reading",
+  "kind": "merge",
+  "catalogue": ["C-02"],
+  "phase": 1,
+  "description": "One physical reading delivered twice, the second time re-issued on another path and therefore carrying a fresh HLC. The dedup key excludes the HLC precisely so this collapses; the causally earliest delivery is kept, because keeping the latest would make the result depend on arrival order.",
+  "schema": { "name": "bench", "fields": [{ "name": "m_a", "lattice": "MeasurementSeries", "scale": 1 }] },
+  "replicas": {
+    "A": { "m_a": [{ "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] }] },
+    "B": { "m_a": [{ "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [5000, 3, "dev_b"] }] }
+  },
+  "expected": {
+    "m_a": [{ "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] }]
+  },
+  "expected_signals": []
+}

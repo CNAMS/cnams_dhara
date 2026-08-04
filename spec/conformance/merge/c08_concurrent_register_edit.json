@@ -1,0 +1,21 @@
+{
+  "name": "c08_concurrent_register_edit",
+  "kind": "merge",
+  "catalogue": ["C-08"],
+  "phase": 1,
+  "description": "Two actors write different values to the same register concurrently. The HLC-maximal value is current and the loser is retained in history, never deleted. Discarding it destroys evidence and produces the reported field symptom of an edit that silently reverts.",
+  "schema": { "name": "bench", "fields": [{ "name": "d_a", "lattice": "LWWRegister" }] },
+  "replicas": {
+    "A": { "d_a": { "value": "alpha", "hlc": [1000, 0, "dev_a"], "author": "w1", "history": [] } },
+    "B": { "d_a": { "value": "beta", "hlc": [1000, 0, "dev_b"], "author": "s1", "history": [] } }
+  },
+  "expected": {
+    "d_a": {
+      "value": "beta",
+      "hlc": [1000, 0, "dev_b"],
+      "author": "s1",
+      "history": [{ "value": "alpha", "hlc": [1000, 0, "dev_a"], "author": "w1" }]
+    }
+  },
+  "expected_signals": [{ "code": "concurrent_demographic_edit", "fields": ["d_a"] }]
+}

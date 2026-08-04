@@ -1,0 +1,21 @@
+{
+  "name": "c12_clear_versus_update",
+  "kind": "merge",
+  "catalogue": ["C-12"],
+  "phase": 1,
+  "description": "One replica sets a new value while another clears the field. Clearing is a VALUE, not an absence: null participates in ordering like anything else. A merge that skipped nulls as 'no update' would silently ignore a deliberate clear, and a wire format that omitted null fields to save bytes would make this scenario unrepresentable.",
+  "schema": { "name": "bench", "fields": [{ "name": "d_b", "lattice": "LWWRegister" }] },
+  "replicas": {
+    "A": { "d_b": { "value": "9876543210", "hlc": [1000, 0, "dev_a"], "author": "w1", "history": [] } },
+    "B": { "d_b": { "value": null, "hlc": [1001, 0, "dev_b"], "author": "s1", "history": [] } }
+  },
+  "expected": {
+    "d_b": {
+      "value": null,
+      "hlc": [1001, 0, "dev_b"],
+      "author": "s1",
+      "history": [{ "value": "9876543210", "hlc": [1000, 0, "dev_a"], "author": "w1" }]
+    }
+  },
+  "expected_signals": [{ "code": "concurrent_demographic_edit", "fields": ["d_b"] }]
+}

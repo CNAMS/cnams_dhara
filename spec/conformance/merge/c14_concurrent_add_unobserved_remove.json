@@ -1,0 +1,27 @@
+{
+  "name": "c14_concurrent_add_unobserved_remove",
+  "kind": "merge",
+  "catalogue": ["C-14"],
+  "phase": 1,
+  "description": "A adds a tag. B, which never saw that add, removes an older tag for the same element. On merge the unobserved add survives. Keying removes on the element rather than on observed tags would erase A's add with no trace and no signal - the failure this lattice exists to prevent.",
+  "schema": { "name": "bench", "fields": [{ "name": "set_a", "lattice": "ORSet" }] },
+  "replicas": {
+    "A": { "set_a": { "adds": [{ "element": "t1", "tag": [1001, 0, "dev_a"] }], "removed_tags": [] } },
+    "B": {
+      "set_a": {
+        "adds": [{ "element": "t1", "tag": [1000, 0, "dev_b"] }],
+        "removed_tags": [[1000, 0, "dev_b"]]
+      }
+    }
+  },
+  "expected": {
+    "set_a": {
+      "adds": [
+        { "element": "t1", "tag": [1000, 0, "dev_b"] },
+        { "element": "t1", "tag": [1001, 0, "dev_a"] }
+      ],
+      "removed_tags": [[1000, 0, "dev_b"]]
+    }
+  },
+  "expected_signals": []
+}

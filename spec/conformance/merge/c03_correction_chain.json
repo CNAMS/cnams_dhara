@@ -1,0 +1,26 @@
+{
+  "name": "c03_correction_chain",
+  "kind": "merge",
+  "catalogue": ["C-03"],
+  "phase": 1,
+  "description": "A value entered, corrected, and the correction corrected. All three are retained; superseding is an annotation rather than a deletion. A replica holding only the first entry converges to the full chain. No signal: a correction chain on one device is careful work, not a conflict.",
+  "schema": { "name": "bench", "fields": [{ "name": "m_a", "lattice": "MeasurementSeries", "scale": 1 }] },
+  "replicas": {
+    "A": { "m_a": [{ "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] }] },
+    "B": {
+      "m_a": [
+        { "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] },
+        { "value": 97, "taken_at": "2026-05-01T10:20", "recorded_by": "w1", "hlc": [1001, 0, "dev_a"], "supersedes": "0000000000001000:0000000000:dev_a" },
+        { "value": 96, "taken_at": "2026-05-01T10:25", "recorded_by": "w1", "hlc": [1002, 0, "dev_a"], "supersedes": "0000000000001001:0000000000:dev_a" }
+      ]
+    }
+  },
+  "expected": {
+    "m_a": [
+      { "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] },
+      { "value": 97, "taken_at": "2026-05-01T10:20", "recorded_by": "w1", "hlc": [1001, 0, "dev_a"], "supersedes": "0000000000001000:0000000000:dev_a" },
+      { "value": 96, "taken_at": "2026-05-01T10:25", "recorded_by": "w1", "hlc": [1002, 0, "dev_a"], "supersedes": "0000000000001001:0000000000:dev_a" }
+    ]
+  },
+  "expected_signals": []
+}

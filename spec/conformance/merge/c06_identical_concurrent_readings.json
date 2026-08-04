@@ -1,0 +1,16 @@
+{
+  "name": "c06_identical_concurrent_readings",
+  "kind": "merge",
+  "catalogue": ["C-06", "C-02"],
+  "phase": 1,
+  "description": "Two genuinely distinct readings that agree in every recorded attribute. They collapse to one entry, and that is a real permanent loss of information - the accepted cost of C-02. Nothing in the data distinguishes this from one reading delivered twice, and the engine must not try.",
+  "schema": { "name": "bench", "fields": [{ "name": "m_a", "lattice": "MeasurementSeries", "scale": 1 }] },
+  "replicas": {
+    "A": { "m_a": [{ "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] }] },
+    "B": { "m_a": [{ "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_b"] }] }
+  },
+  "expected": {
+    "m_a": [{ "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] }]
+  },
+  "expected_signals": []
+}

@@ -1,0 +1,23 @@
+{
+  "name": "c04_disjoint_fields_union",
+  "kind": "merge",
+  "catalogue": ["C-04"],
+  "phase": 1,
+  "description": "Concurrent writes to disjoint fields. The boring case, asserted to be boring: the union is clean and NO signal is emitted. A system that flagged this would bury reviewers in noise within a week, and most concurrent edits in the field are this shape.",
+  "schema": {
+    "name": "bench",
+    "fields": [
+      { "name": "m_a", "lattice": "MeasurementSeries", "scale": 1 },
+      { "name": "m_b", "lattice": "MeasurementSeries", "scale": 0 }
+    ]
+  },
+  "replicas": {
+    "A": { "m_a": [{ "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] }] },
+    "B": { "m_b": [{ "value": 740, "taken_at": "2026-05-01T10:20", "recorded_by": "w1", "hlc": [1000, 0, "dev_b"] }] }
+  },
+  "expected": {
+    "m_a": [{ "value": 92, "taken_at": "2026-05-01T10:15", "recorded_by": "w1", "hlc": [1000, 0, "dev_a"] }],
+    "m_b": [{ "value": 740, "taken_at": "2026-05-01T10:20", "recorded_by": "w1", "hlc": [1000, 0, "dev_b"] }]
+  },
+  "expected_signals": []
+}

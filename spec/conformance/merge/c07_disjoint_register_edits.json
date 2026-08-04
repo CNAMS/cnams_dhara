@@ -1,0 +1,23 @@
+{
+  "name": "c07_disjoint_register_edits",
+  "kind": "merge",
+  "catalogue": ["C-07"],
+  "phase": 1,
+  "description": "One actor corrects one register while another edits a different one. Both apply, both retain their own history, and no signal fires. Row-granularity LWW would lose one of the two edits invisibly - the field would simply still hold its old value, which looks like the edit was never made rather than like it was overwritten.",
+  "schema": {
+    "name": "bench",
+    "fields": [
+      { "name": "d_a", "lattice": "LWWRegister" },
+      { "name": "d_c", "lattice": "LWWRegister" }
+    ]
+  },
+  "replicas": {
+    "A": { "d_a": { "value": "corrected", "hlc": [1000, 0, "dev_a"], "author": "s1", "history": [] } },
+    "B": { "d_c": { "value": "updated", "hlc": [1000, 0, "dev_b"], "author": "w1", "history": [] } }
+  },
+  "expected": {
+    "d_a": { "value": "corrected", "hlc": [1000, 0, "dev_a"], "author": "s1", "history": [] },
+    "d_c": { "value": "updated", "hlc": [1000, 0, "dev_b"], "author": "w1", "history": [] }
+  },
+  "expected_signals": []
+}
