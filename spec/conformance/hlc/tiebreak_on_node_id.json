@@ -1,0 +1,12 @@
+{
+  "name": "tiebreak_on_node_id",
+  "kind": "hlc",
+  "catalogue": ["C-15"],
+  "phase": 1,
+  "description": "Two devices issue timestamps with identical physical time and counter. The node id decides the order, and it must decide it the same way on every replica - otherwise two replicas apply concurrent operations in different orders and never converge, with every local test still passing.",
+  "operations": [
+    { "op": "send", "node": "dev_a", "physical_time": 1800000000000, "expect": [1800000000000, 0, "dev_a"] },
+    { "op": "send", "node": "dev_b", "physical_time": 1800000000000, "expect": [1800000000000, 0, "dev_b"] }
+  ],
+  "expected": { "sorted": [[1800000000000, 0, "dev_a"], [1800000000000, 0, "dev_b"]] }
+}

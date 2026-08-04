@@ -1,0 +1,13 @@
+{
+  "name": "monotonic_send_frozen_clock",
+  "kind": "hlc",
+  "catalogue": ["C-15"],
+  "phase": 1,
+  "description": "Successive sends within one physical millisecond advance only the logical counter. The first send starts a fresh tick because the initial state is (0, 0), so its counter is 0.",
+  "operations": [
+    { "op": "send", "node": "a", "physical_time": 1800000000000, "expect": [1800000000000, 0, "a"] },
+    { "op": "send", "node": "a", "physical_time": 1800000000000, "expect": [1800000000000, 1, "a"] },
+    { "op": "send", "node": "a", "physical_time": 1800000000000, "expect": [1800000000000, 2, "a"] }
+  ],
+  "expected": { "final": [1800000000000, 2, "a"] }
+}

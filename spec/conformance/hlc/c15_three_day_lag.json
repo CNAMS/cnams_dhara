@@ -1,0 +1,14 @@
+{
+  "name": "c15_three_day_lag",
+  "kind": "hlc",
+  "catalogue": ["C-15"],
+  "phase": 1,
+  "description": "A device three days behind observes a peer event, then issues its own. Its operations must sort above the event it observed, not below it. Under wall-clock timestamps every one of its edits would lose, for three days, silently.",
+  "operations": [
+    { "op": "send",    "node": "peer",   "physical_time": 1800000000000, "expect": [1800000000000, 0, "peer"] },
+    { "op": "receive", "node": "worker", "physical_time": 1799740800000, "remote": [1800000000000, 0, "peer"], "expect": [1800000000000, 1, "worker"] },
+    { "op": "send",    "node": "worker", "physical_time": 1799740801000, "expect": [1800000000000, 2, "worker"] },
+    { "op": "send",    "node": "worker", "physical_time": 1799740802000, "expect": [1800000000000, 3, "worker"] }
+  ],
+  "expected": { "final": [1800000000000, 3, "worker"] }
+}

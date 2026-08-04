@@ -1,0 +1,13 @@
+{
+  "name": "receive_from_the_future",
+  "kind": "hlc",
+  "catalogue": ["C-16"],
+  "phase": 1,
+  "description": "Observing a timestamp far ahead of local physical time adopts its physical component and steps past its counter. Everything issued afterwards sorts above it.",
+  "operations": [
+    { "op": "send",    "node": "a", "physical_time": 1800000000000, "expect": [1800000000000, 0, "a"] },
+    { "op": "receive", "node": "a", "physical_time": 1800000000000, "remote": [1800172800000, 4, "b"], "expect": [1800172800000, 5, "a"] },
+    { "op": "send",    "node": "a", "physical_time": 1800000001000, "expect": [1800172800000, 6, "a"] }
+  ],
+  "expected": { "final": [1800172800000, 6, "a"] }
+}

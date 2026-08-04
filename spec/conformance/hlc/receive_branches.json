@@ -1,0 +1,15 @@
+{
+  "name": "receive_branches",
+  "kind": "hlc",
+  "catalogue": ["C-15"],
+  "phase": 1,
+  "description": "Exercises all four branches of the receive path in one transcript: physical time beyond both, local at the frontier, remote ahead, and all three equal. A subtly wrong branch is a convergence bug no single-replica test can see.",
+  "operations": [
+    { "op": "send",    "node": "a", "physical_time": 1800000000000, "expect": [1800000000000, 0, "a"] },
+    { "op": "receive", "node": "a", "physical_time": 1800000000000, "remote": [1800000000000, 5, "b"], "expect": [1800000000000, 6, "a"] },
+    { "op": "receive", "node": "a", "physical_time": 1800000000000, "remote": [1799999999000, 9, "b"], "expect": [1800000000000, 7, "a"] },
+    { "op": "receive", "node": "a", "physical_time": 1800000000000, "remote": [1800000005000, 2, "b"], "expect": [1800000005000, 3, "a"] },
+    { "op": "receive", "node": "a", "physical_time": 1800000009000, "remote": [1800000005000, 2, "b"], "expect": [1800000009000, 0, "a"] }
+  ],
+  "expected": { "final": [1800000009000, 0, "a"] }
+}

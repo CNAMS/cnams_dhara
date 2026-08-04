@@ -1,0 +1,14 @@
+{
+  "name": "c16_clock_jump_forward_then_back",
+  "kind": "hlc",
+  "catalogue": ["C-16"],
+  "phase": 1,
+  "description": "A dead battery leaves the clock two days ahead; a later network sync corrects it back. The device must never reissue or regress a timestamp. The physical component cannot regress, so the excursion's inflated value persists - that is an accepted limitation of HLC, recorded in C-16.",
+  "operations": [
+    { "op": "send", "node": "dev", "physical_time": 1800000000000, "expect": [1800000000000, 0, "dev"] },
+    { "op": "send", "node": "dev", "physical_time": 1800172800000, "expect": [1800172800000, 0, "dev"] },
+    { "op": "send", "node": "dev", "physical_time": 1800000001000, "expect": [1800172800000, 1, "dev"] },
+    { "op": "send", "node": "dev", "physical_time": 1800000002000, "expect": [1800172800000, 2, "dev"] }
+  ],
+  "expected": { "final": [1800172800000, 2, "dev"] }
+}
