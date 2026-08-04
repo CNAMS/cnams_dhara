@@ -139,12 +139,26 @@ cgms/mobile/lib/data/sync/schema_binding.dart
 
 Enforcement, added in WI-1.0 and run in CI from that point:
 
-- `scripts/check_no_domain_imports.py` fails the build if any file under `dhara-py/`
-  or `dhara-dart/` contains the tokens `child`, `beneficiary`, `anganwadi`, `cgms`,
-  `mother`, `immunis`, or `poshan` outside of `docs/` and comments explicitly marked
-  `# origin-note:`.
+- `scripts/check_no_domain_imports.py` fails the build if a file **in scope** contains
+  the tokens `child`, `beneficiary`, `anganwadi`, `cgms`, `mother`, `immunis`, or
+  `poshan`, outside of comments explicitly marked `# origin-note:`.
 - The word list lives in the script, not in a config file, so changing it requires a
   commit that says why.
+
+**Scope of the checker** — narrower than "everything", and deliberately so:
+
+| Path | Checked | Why |
+|---|---|---|
+| `dhara-py/dhara/**`, `dhara-py/sim/**`, `dhara-py/tests/**` | ✅ | The engine and everything that exercises it |
+| `dhara-dart/lib/**`, `dhara-dart/test/**` | ✅ | Same, other language |
+| `spec/conformance/**` | ✅ | Vectors are inputs to the engine; a domain field name here leaks straight into both implementations |
+| `spec/*.md` | ❌ | Prose. The conflict catalogue *must* describe real scenarios in real vocabulary — that is its entire purpose (roadmap §8, Phase 0) and a domain expert cannot check it otherwise. |
+| `docs/`, `plan/`, `README.md` | ❌ | Prose describing where the project came from |
+
+⚠ The rule exists to stop merge *logic* from knowing what a child is. Prose that
+cannot be imported cannot violate it. Each catalogue entry declares the neutral field
+id its vector will use, so the boundary is crossed exactly once, in a document, on
+purpose. → [DOUBTS.md D-01](../DOUBTS.md#d-01)
 
 ⚠ **The trap this exists to catch:** you, at 2 AM during exams, writing
 `from app.models import Child` inside a merge function because it is faster than

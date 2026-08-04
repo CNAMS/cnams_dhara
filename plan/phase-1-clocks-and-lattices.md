@@ -570,6 +570,6 @@ obvious alternative, what it costs, and what it refuses to decide.
 |---|---|---|
 | Property tests pass because the strategy is too narrow | 10k examples run in under a second | Widen the strategy — more replicas, longer op sequences, adversarial HLC values. A fast property test is usually a weak one. |
 | The HLC counter grows without bound | Skew test's `c` in the thousands | Rung WI-1.4.4 catches it. The bound is messages-per-physical-tick, not total. |
-| Domain vocabulary leaks into vectors | Checker fails on `spec/` | Rename to neutral field names. The mapping belongs in the CGMS repo. |
+| Domain vocabulary leaks into vectors | Checker fails on `spec/conformance/` | Rename to the neutral field id the catalogue entry declares. The mapping belongs in the CGMS repo. Prose under `spec/*.md` is out of scope — see [repo-layout.md](repo-layout.md) §3. |
 | StatusLattice's domain join is not associative | Discovered in Phase 3 as non-convergence | WI-1.11 rung 2 validates exhaustively at construction. Do not skip it. |
 | Lattices grow toward a general CRDT library | New lattice types nobody asked for | Non-goal §2: fixed catalogue of lattice types only. Five is the number. |
