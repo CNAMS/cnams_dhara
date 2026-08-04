@@ -1,0 +1,60 @@
+name: python
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A CI you wait for is a CI you start skipping. Budget: under 3 minutes.
+# Anything slower moves to sim-nightly.yml.
+concurrency:
+  group: py-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: dhara-py
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.11"
+            hash-seed: "0"
+          - python: "3.12"
+            # Randomised hash seed on exactly one leg. This is the mechanical
+            # guard against a join whose result depends on dict or set
+            # iteration order - a convergence bug that passes every test on a
+            # single machine. See plan/ci-and-tooling.md section 5.3.
+            hash-seed: "random"
+
+    env:
+      PYTHONHASHSEED: ${{ matrix.hash-seed }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python }}
+        run: uv python install ${{ matrix.python }}
+
+      - name: Install
+        run: uv sync --all-groups
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy
+
+      - name: Test
+        run: uv run pytest --cov --cov-report=term-missing
