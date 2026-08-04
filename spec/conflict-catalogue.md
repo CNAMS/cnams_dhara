@@ -1,6 +1,6 @@
 # Conflict catalogue
 
-**Status:** Phase 0 deliverable · **Entries:** 1 of 24 · **Source:** roadmap §8, Phase 0
+**Status:** Phase 0 deliverable · **Entries:** 6 of 24 · **Source:** roadmap §8, Phase 0
 
 Every concurrent-edit scenario that can occur in a real deployment, with the correct
 merged outcome written down before any merge code exists.
@@ -120,3 +120,210 @@ declared timezone from the schema, not either device's local time.
 **Vector** `merge/c01_concurrent_measurements_same_day.json`
 
 **Open** None.
+
+---
+
+### C-02 — The same reading is delivered twice by two sync paths
+
+**Setup**
+Replica A records weight 9.2 kg at 10:15 by `w1`. It syncs to the server. Later, a
+partial session is retried and the same operation is delivered again — or the same
+reading reaches the server via a second device that received it from A.
+
+**Concurrency**
+None causally, but the second delivery carries a **different HLC**, because the
+operation was re-issued on a different path at a different time.
+
+**Naive outcome**
+Deduplicating on operation identity alone (or on the HLC) admits the duplicate: the
+record now shows two weighings of 9.2 kg on the same morning, and C-01's review
+signal fires on a conflict that does not exist. A merge engine that manufactures
+clinical suspicion is worse than one that stays quiet.
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `m_a` | Exactly one entry: `{9.2, taken_at=10:15, by=w1}` |
+| review signals | None |
+
+**Lattice** `MeasurementSeries`. **The dedup key is
+`(taken_at, recorded_by, value)` and deliberately excludes the HLC** — the second
+delivery has a fresh HLC, so keying on it would admit exactly the duplicate the key
+exists to reject.
+
+**Review signal** None.
+
+**Vector** `merge/c02_duplicate_delivery_one_reading.json`
+
+**Open** None. The cost of this choice is C-06, which is accepted.
+
+---
+
+### C-03 — A measurement is entered, corrected, and the correction corrected
+
+**Setup**
+Replica A, all on one device, in causal order: records weight 9.2 kg → notices a
+transcription error and records 9.7 kg as a correction → re-weighs and records
+9.6 kg as a correction of the correction.
+
+**Concurrency**
+None. This is a causal chain on one replica. It is in the catalogue because the
+**correct handling is still not "keep the last one"**, and because a second replica
+may hold any prefix of this chain.
+
+**Naive outcome**
+LWW keeps 9.6 kg and discards two values. The record then cannot answer "was this
+child weighed once or three times?" or "was the 9.2 an error or a real earlier
+reading?" — questions a supervisor auditing a suspicious growth curve will ask.
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `m_a` | Three entries retained: 9.2, 9.7, 9.6 |
+| `supersedes` links | 9.7 supersedes 9.2; 9.6 supersedes 9.7 |
+| current value | 9.6, derived as the entry no other entry supersedes |
+| deletions | None |
+
+A replica holding only `{9.2}` and one holding the full chain converge to the full
+chain. A superseded entry is never removed — superseding is an annotation, not a
+deletion.
+
+**Lattice** `MeasurementSeries` with `supersedes` references.
+
+**Review signal** None. A correction chain on a single device is a worker doing her
+job carefully, not a conflict.
+
+⚠ Two devices concurrently superseding the same entry produces a **fork** in the
+chain: two entries both claiming to supersede 9.2. That converges (both are retained)
+but "current value" is then ambiguous. That case emits `superseded_fork` and is
+resolved by HLC order for display, with the fork visible.
+
+**Vector** `merge/c03_correction_chain.json`
+
+**Open** None.
+
+---
+
+### C-04 — Weight recorded on device A while height is recorded on device B
+
+**Setup**
+Replica A records weight 9.2 kg. Replica B, offline and concurrently, records
+height 74 cm for the same child.
+
+**Concurrency**
+Fully concurrent, but on **disjoint fields**.
+
+**Naive outcome**
+LWW **at row granularity** loses one of them: whichever row write lands second
+overwrites the whole row, and the height or the weight disappears. This is why row-
+level LWW is worse than field-level LWW, and why "we use last-write-wins" is an
+under-specified statement.
+
+At field granularity, LWW gets this right. **Recorded because the boring case must be
+verified to be boring** — most concurrent edits in the field will be this shape, and a
+system that emits a review signal here would bury supervisors in noise.
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `m_a` (weight) | `{9.2}` |
+| `m_b` (height) | `{74}` |
+| review signals | **None** |
+
+**Lattice** Field-wise join across the schema; each field's own lattice applies
+independently.
+
+**Review signal** None, and this is load-bearing. See also C-07.
+
+**Vector** `merge/c04_disjoint_fields_union.json`
+
+**Open** None.
+
+---
+
+### C-05 — A measurement carries a `taken_at` in the future
+
+**Setup**
+A worker's phone has its clock set two days ahead — set by hand, or reset to a
+default after the battery died. She records a weight. The `taken_at` timestamp is
+two days in the future relative to the server and to every other device.
+
+**Concurrency**
+Not necessarily concurrent with anything. The problem is the value, not the ordering.
+
+**Naive outcome**
+Two distinct bad outcomes are available and both are wrong:
+
+1. **Reject the measurement.** A worker who did her job loses the record because her
+   phone's clock was wrong. This is precisely the failure the project exists to
+   eliminate.
+2. **Silently rewrite `taken_at` to the server's receive time.** The measurement now
+   claims to have been taken at a moment it was not, corrupting a longitudinal
+   record. The growth curve is subtly wrong and nothing indicates why.
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `m_a` | Entry retained, **with `taken_at` exactly as recorded** |
+| ordering | By HLC, which is causally correct regardless of the skewed wall clock |
+| `taken_at` | Never rewritten |
+
+**Lattice** `MeasurementSeries`. HLC ordering is unaffected — this is exactly what
+hybrid logical clocks are for (roadmap §6.1).
+
+**Review signal** `implausible_taken_at` — carrying the recorded value, the receive
+time, and the delta, so a supervisor can correct it as a new operation with proper
+provenance.
+
+**Vector** `merge/c05_implausible_taken_at.json`
+
+**Open** The plausibility threshold is policy, not engine. `dhara` emits the signal
+when `taken_at` exceeds a schema-declared bound relative to the causally-ordered
+receive time; what the bound should be is a deployment question.
+
+---
+
+### C-06 — Two devices record an identical reading concurrently
+
+**Setup**
+Two workers weigh the same child at the same recorded time and get the same value,
+and both record `recorded_by` as the same worker id — for example, a worker entering
+the same reading on the shared centre phone and on her own.
+
+**Concurrency**
+Fully concurrent.
+
+**Naive outcome**
+Not a naive-outcome problem — LWW also produces one entry here. Recorded because it
+is the **accepted cost of C-02**.
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `m_a` | Exactly one entry |
+
+**Lattice** `MeasurementSeries`, same dedup key as C-02.
+
+**Review signal** None.
+
+⚠ **C-02 and C-06 are indistinguishable to the engine, and it must not try to
+distinguish them.** C-02 is one physical event delivered twice; C-06 is two physical
+events that happen to be identical in every recorded attribute. Nothing in the data
+separates them.
+
+Both collapse to one entry. That is a real, permanent loss of information — one of
+the two weighings in C-06 leaves no trace — and it is the correct trade. The
+alternative, keying dedup on something that differs between the two deliveries in
+C-02, means every retried sync manufactures a phantom duplicate weighing. Phantom
+data in a clinical record is worse than an undercount of identical readings.
+
+This entry exists so that trade is on the record and can be defended when asked.
+
+**Vector** `merge/c06_identical_concurrent_readings.json`
+
+**Open** None. The information loss is accepted and documented.
