@@ -68,11 +68,18 @@ table name hardcoded. It receives a schema descriptor at runtime.
 
 ## Status
 
-**Phase 0 — planning complete, implementation not started.**
+**Phase 1 — clock layer done, lattice layer in progress.**
 
-Nothing in `spec/`, `dhara-py/`, or `dhara-dart/` exists yet. The execution plan in
-[EXECUTION.md](EXECUTION.md) is the current state of the project. Progress is
-tracked in [plan/tracking-board.md](plan/tracking-board.md).
+| | |
+|---|---|
+| `spec/` | 24-entry conflict catalogue, merge semantics, protocol v0.1 **draft**, conformance vector schema, 6 HLC vectors |
+| `dhara-py/` | Hybrid logical clock, conformance runner, dependency-rule checker. 65 tests green. |
+| `dhara-dart/` | Not started — Phase 4 |
+
+Phase 0 is **not** tagged complete: the field-access conversation has not happened
+and CI has never been executed by a runner. See [LEFTOVER.md](LEFTOVER.md).
+
+Progress: [plan/tracking-board.md](plan/tracking-board.md).
 
 ## How correctness is established
 
@@ -92,5 +99,6 @@ Not by "it works on my phone."
 
 ## Licence
 
-TBD — see [plan/phase-0-catalogue-and-spec.md](plan/phase-0-catalogue-and-spec.md),
-WI-0.1.
+[Apache-2.0](LICENSE) — chosen over MIT for the explicit patent grant, since this work
+may end up adjacent to a government programme. See
+[ADR-0003](docs/adr/0003-apache-2-licence.md).
