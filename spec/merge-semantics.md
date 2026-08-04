@@ -1,6 +1,6 @@
 # Merge semantics
 
-**Status:** Phase 0 skeleton — rationale sections completed in Phase 1 (WI-1.16)
+**Status:** Phase 1 complete · **Implementations:** `dhara-py` ✅ · `dhara-dart` (Phase 4)
 
 [conflict-catalogue.md](conflict-catalogue.md) says what should happen. This document
 says which algebraic object makes it happen, and **why that one rather than the
@@ -72,8 +72,6 @@ know is more trustworthy than one that silently guesses.**
 
 ## 4. `MeasurementSeries`
 
-*Full rationale: WI-1.16 rung 2.*
-
 **State** A set of entries. Each entry: value, `taken_at`, `recorded_by`, HLC, and an
 optional `supersedes` reference.
 
@@ -107,8 +105,6 @@ undercount of identical readings.**
 ---
 
 ## 5. `LWWRegister`
-
-*Full rationale: WI-1.16 rung 1.*
 
 **State** A current `(value, hlc, author)` plus a **history** set of every other
 observed value.
@@ -153,8 +149,6 @@ field, and `dhara` does not offer one.
 
 ## 6. `StatusLattice`
 
-*Full rationale: WI-1.16 rung 3.*
-
 **State** A single value from a declared, finite value set.
 
 **Join** A **domain-supplied function** over a declared partial order.
@@ -191,8 +185,6 @@ three layers away.
 ---
 
 ## 7. `ORSet`
-
-*Full rationale: WI-1.16 rung 4.*
 
 **State** A set of `(element, tag)` adds and a set of observed tags removed. Each add
 carries a unique tag `(hlc, node_id)`.
@@ -231,8 +223,6 @@ six-month-offline device (C-20).
 
 ## 8. `GSet`
 
-*Full rationale: WI-1.16 rung 5.*
-
 **State** A set. **Join** Union.
 
 Prefer it over `ORSet` whenever elements are **never removed** — an append-only audit
@@ -246,8 +236,6 @@ deliberately rather than because `GSet` was simpler on the day.
 ---
 
 ## 9. What the engine refuses to decide
-
-*Full rationale: WI-1.16 rung 7.*
 
 Two situations produce no merged answer, by design:
 
@@ -280,8 +268,6 @@ shapes is [review-signals.md](review-signals.md), written in WI-1.13.
 
 ## 11. Alternatives considered
 
-*Completed in WI-1.16 rung 8.*
-
 | Choice | Alternative | Why not |
 |---|---|---|
 | Five fixed lattices | Arbitrary user-defined lattices | Non-goal §2. Generality here buys nothing and costs months. |
@@ -290,3 +276,49 @@ shapes is [review-signals.md](review-signals.md), written in WI-1.13.
 | Observed-remove sets | Element-keyed remove sets | Erases concurrent unobserved adds (C-14). |
 | Retained losers | Discard on merge | The project's headline claim, inverted. |
 | Dedup excluding HLC | Dedup including HLC | Admits a duplicate on every retried sync (C-02). |
+| Dedup keeping the **earliest** delivery | Keeping the latest | `max` over HLC makes the kept entry depend on arrival order, so the join is not commutative. `min` is. The earliest HLC is also the causally correct one: a redelivery's fresh HLC is a transport artefact. |
+| Signals derived from merged state | Signals accumulated during the join | Accumulating makes them a function of the merge *path* rather than the destination, so two replicas reaching identical state emit different signals — and the Phase 4 comparison fails for reasons unrelated to merge semantics. |
+| Integer minor units | Decimal strings, or floats with a fixed precision | Floats format differently in Python and Dart, which breaks byte-identical canonical form and therefore delta computation. Integers remove the class of problem rather than encoding around it. → [DOUBTS.md D-04](../DOUBTS.md#d-04) |
+| Status has no history | Retaining prior positions | Its state is a position in an order, not a set of observations; the transition history lives in the operation log. Retaining prior positions would either break idempotence or make the state unbounded, and would duplicate the oplog. |
+
+---
+
+## 12. What is implemented, and how it was checked
+
+| Lattice | Module | Laws | Catalogue |
+|---|---|---|---|
+| `GSet` | `dhara/lattice/g_set.py` | ✅ | — |
+| `LWWRegister` | `dhara/lattice/lww_register.py` | ✅ | C-07, C-08, C-12, C-19 |
+| `ORSet` | `dhara/lattice/or_set.py` | ✅ | C-14 |
+| `MeasurementSeries` | `dhara/lattice/measurement_series.py` | ✅ | C-01…C-06 |
+| `StatusLattice` | `dhara/lattice/status.py` | ✅ | C-09, C-10 |
+
+**Checked three ways, and the three catch different things:**
+
+1. **Property tests** over 1,000 Hypothesis examples per type — commutativity,
+   associativity, idempotence, `leq`/`join` agreement, canonical stability,
+   JSON round-trip, and the no-loss property.
+2. **Conformance vectors** — twelve merge vectors joined in every permutation of
+   replica order, with expected states written from the catalogue rather than
+   from the code.
+3. **Mutation calibration** — deliberately breaking the implementation and
+   confirming something fails.
+
+⚠ The third found a gap the first two missed. Keying an OR-Set remove on the
+element instead of on observed tags — mutation M4 of the Phase 2 experiment —
+passed the entire property suite, because the strategies built OR-Set values
+with the constructor and never called `remove()`. **Laws over constructed values
+prove the algebra and say nothing about whether the operations producing those
+values are right.** `tests/unit/test_or_set_semantics.py` closes it.
+
+### One defect this document caught
+
+C-03's vector was written from the catalogue, which states that a correction
+chain emits **no** signal. The implementation emitted `multiple_weights_same_day`,
+because it counted every entry in a series rather than only the current ones —
+so three corrections on one day looked identical to three actors disagreeing.
+
+The fix was in the implementation, not the vector. That ordering is the rule
+(`spec/conformance/README.md` §2), and this is the case that proves it earns its
+keep: writing the vector to match the code would have shipped a signal that
+fires on every correction a careful worker makes.
