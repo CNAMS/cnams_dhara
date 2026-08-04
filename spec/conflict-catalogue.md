@@ -1,6 +1,6 @@
 # Conflict catalogue
 
-**Status:** Phase 0 deliverable · **Entries:** 6 of 24 · **Source:** roadmap §8, Phase 0
+**Status:** Phase 0 deliverable · **Entries:** 12 of 24 · **Source:** roadmap §8, Phase 0
 
 Every concurrent-edit scenario that can occur in a real deployment, with the correct
 merged outcome written down before any merge code exists.
@@ -327,3 +327,245 @@ This entry exists so that trade is on the record and can be defended when asked.
 **Vector** `merge/c06_identical_concurrent_readings.json`
 
 **Open** None. The information loss is accepted and documented.
+
+---
+
+### C-07 — A supervisor corrects a name while the worker edits the address
+
+**Setup**
+Replica A (supervisor, offline) corrects the spelling of a child's name. Replica B
+(worker, offline) updates the household address. Both sync later.
+
+**Concurrency**
+Fully concurrent, disjoint fields.
+
+**Naive outcome**
+Row-granularity LWW loses one of the two edits, and — worse than C-04 — the loss is
+invisible: the field simply still holds its old value, which looks like the edit was
+never made rather than like it was overwritten. The supervisor re-types the
+correction; it disappears again after the next sync. This is one of the reported
+real-world failure shapes ("I fixed it and it went back").
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `d_a` (name) | Supervisor's corrected value |
+| `d_c` (address) | Worker's updated value |
+| history | Prior values retained for both fields |
+| review signals | **None** |
+
+**Lattice** Field-wise join; `LWWRegister` per field.
+
+**Review signal** None. Disjoint edits are not a conflict, and treating them as one
+would make the review queue useless within a week.
+
+**Vector** `merge/c07_disjoint_demographic_edits.json`
+
+**Open** None.
+
+---
+
+### C-08 — Two devices edit the same name spelling concurrently
+
+**Setup**
+Replica A changes the name from "Sunita" to "Suneeta". Replica B, concurrently,
+changes the same field to "Sunitha". Both are plausible transliterations; neither is
+obviously wrong.
+
+**Concurrency**
+Fully concurrent, same field.
+
+**Naive outcome**
+LWW picks the HLC-maximal value and **discards the other**. Nothing records that a
+second person, looking at the same child, wrote something different. A supervisor
+reviewing the record cannot tell that the spelling was contested — and in a
+transliterated-name context, contested spellings are how duplicate registrations are
+detected downstream.
+
+Roadmap §5.4 states this exactly: *a last-write-wins register that discards the loser
+is a data-loss bug wearing a design-decision costume.*
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `d_a` current | HLC-maximal of the two, deterministic across replicas |
+| `d_a` history | **Both** values, with their authors and HLCs — the loser retained, never deleted |
+| convergence | Both replicas hold the same current value and the same history set |
+
+**Lattice** `LWWRegister` with retained losers. Retention is the semantics, not a
+constructor option — there is no code path that discards.
+
+**Review signal** `concurrent_demographic_edit`, carrying both values and both
+authors. A human can pick; the engine cannot.
+
+**Vector** `merge/c08_concurrent_register_edit.json`
+
+**Open** None.
+
+---
+
+### C-09 — A child is marked graduated on one device and re-enrolled on another
+
+**Setup**
+Replica A marks the child `graduated` (aged out of the programme). Replica B,
+offline and unaware, sets the status back to `enrolled` — the family returned, or the
+worker did not know.
+
+**Concurrency**
+Fully concurrent, same field.
+
+**Naive outcome**
+LWW resolves on timestamp: whichever device's clock ran later wins. **The outcome
+depends on clock skew, not on domain meaning.** A device three days behind loses; the
+same two operations in the other order produce the opposite result. A child's
+programme status is decided by which phone had the more accurate clock.
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `st_a` | `graduated` — the terminal state wins, by the declared partial order |
+| re-enrolment | Not represented by reverting status. It requires an **explicit new record**. |
+
+**Lattice** `StatusLattice` with a domain-supplied join over a declared partial
+order. Not a timestamp comparison.
+
+⚠ **The ordering itself is domain knowledge and lives in the consumer's
+`schema_binding.py`**, not here and not in `dhara`. `dhara` provides the machinery
+and validates that the supplied join is commutative, associative and idempotent over
+the declared value set; the domain provides the order. The example in roadmap §5.4 —
+`prospective < enrolled < transferred < graduated` — is an illustration of the API,
+not a value shipped in this repository.
+
+**Review signal** `reenrolment_after_graduation` — the outcome is well defined, but a
+worker tried to do something the model forbids and needs to be told what to do
+instead.
+
+**Vector** `merge/c09_terminal_status_wins.json`
+
+**Open** None.
+
+---
+
+### C-10 — Concurrent status transitions along different branches
+
+**Setup**
+Both replicas start from `prospective`. Replica A moves the child to `enrolled`.
+Replica B, concurrently, moves the same child to `transferred` (the family moved to
+another centre's catchment).
+
+**Concurrency**
+Fully concurrent, same field, **neither value is an ancestor of the other**.
+
+**Naive outcome**
+LWW picks by timestamp, so the child ends up enrolled at one centre or transferred to
+another depending on clock skew. Both outcomes have real administrative
+consequences — one centre counts her, or neither does.
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `st_a` | The join of `enrolled` and `transferred` **as declared by the domain order** |
+
+For the illustrative order in roadmap §5.4, that is `transferred`. But the important
+property is not which value wins — it is that **the same value wins on every replica,
+derived from a declared order rather than from wall-clock timing.**
+
+**Lattice** `StatusLattice`.
+
+**Review signal** `concurrent_status_transition` when the two inputs are on
+incomparable branches. The join is total and deterministic, so the engine does not
+need help — but two workers disagreeing about whether a child is enrolled or
+transferred is an operational fact somebody should see.
+
+**Vector** `merge/c10_concurrent_status_branches.json`
+
+**Open** Whether every incomparable-branch join should signal, or only those the
+schema marks as significant. Deferred to Phase 1; the conservative default is to
+signal, since the failure mode of over-signalling is measurable (M5) and the failure
+mode of under-signalling is invisible.
+
+---
+
+### C-11 — A record is deleted on one device and updated on another
+
+**Setup**
+Replica A deletes a record — a supervisor removing a duplicate or erroneous
+registration. Replica B, offline and concurrently, records a new weight against that
+same record.
+
+**Concurrency**
+Fully concurrent.
+
+**Naive outcome**
+Both available answers are defensible and **both are wrong**:
+
+- **Delete wins.** A measurement a worker took is discarded. Silent data loss, which
+  is the one thing this system may not do.
+- **Update wins.** A record a supervisor deliberately removed comes back, carrying a
+  measurement. Deletions that spontaneously undo themselves are how people stop
+  trusting a system entirely.
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| record | Tombstoned, **and** the concurrent measurement retained against it |
+| visibility | Not shown in ordinary listings; visible in the review queue with its full contents |
+| resolution | A human decides: confirm the deletion (and the measurement is preserved as evidence of what was lost) or restore the record |
+
+**The engine declines to decide.** Roadmap §6.2: *a sync engine that admits it does
+not know is more trustworthy than one that silently guesses.*
+
+**Lattice** Tombstone plus retained field state. The tombstone does not erase.
+
+**Review signal** `delete_update_conflict` — high priority. This is the entry most
+likely to represent a real mistake by a real person.
+
+**Vector** `merge/c11_delete_versus_update.json`
+
+**Open** How long a tombstoned-but-contested record stays in the queue before some
+default applies. Linked to open question Q2 (tombstone retention).
+
+---
+
+### C-12 — A guardian phone number is changed on A and cleared on B
+
+**Setup**
+Replica A updates the guardian phone to a new number. Replica B, concurrently, clears
+the field — the number was wrong, or the guardian asked for it to be removed.
+
+**Concurrency**
+Fully concurrent, same field.
+
+**Naive outcome**
+Two failure shapes, depending on an implementation detail nobody documents:
+
+- If "cleared" is represented as `NULL` and the merge skips null values as "no
+  update", the clear is **silently ignored** and the number the guardian asked to have
+  removed stays in the record. That is a consent problem, not just a merge bug.
+- If null is treated as a value but the register discards losers, whichever side
+  loses vanishes without trace.
+
+**Desired outcome**
+
+| Field | State after merge |
+|---|---|
+| `d_b` current | HLC-maximal of `{new number}` and `{cleared}` — **clearing is a value, not an absence** |
+| `d_b` history | Both retained, with authors |
+
+**Lattice** `LWWRegister`. The register's value type is `Optional[T]` and `None` is a
+first-class value that participates in ordering like any other.
+
+**Review signal** `concurrent_demographic_edit`, same as C-08.
+
+⚠ This distinction — cleared-as-a-value versus absent-as-no-update — must be explicit
+in the wire format. A serialisation that omits null fields to save bytes makes this
+scenario unrepresentable, and the bytes saved are not worth it.
+
+**Vector** `merge/c12_clear_versus_update.json`
+
+**Open** None.
