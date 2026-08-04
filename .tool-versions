@@ -1,0 +1,10 @@
+# Runtime versions for reproducible builds.
+# Read by asdf/mise. CI pins the same versions in its workflow matrix.
+#
+# Python 3.11 is the floor: Self typing, tomllib, and exception groups
+# (used by the invariant checker to report every violation, not the first).
+python 3.12.4
+
+# Dart is unused until Phase 4. Pinned now so the version is a decision
+# rather than whatever was installed the week the port started.
+dart 3.5.0
