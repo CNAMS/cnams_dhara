@@ -1,6 +1,6 @@
 # Conflict catalogue
 
-**Status:** Phase 0 deliverable · **Entries:** 20 of 24 · **Source:** roadmap §8, Phase 0
+**Status:** Phase 0 deliverable · **Entries:** 24 of 24 ✔ · **Source:** roadmap §8, Phase 0
 
 Every concurrent-edit scenario that can occur in a real deployment, with the correct
 merged outcome written down before any merge code exists.
@@ -928,3 +928,230 @@ position: retain at least as long as the revocation validity period (90 days), s
 a device cannot usefully be offline longer than that anyway — its read key has
 expired. That coupling is convenient and possibly too convenient; it needs checking
 against real time-since-last-sync data from Phase 6 before being committed to.
+
+---
+
+### C-21 — A sync is interrupted after chunk 7 of 20 and resumed on a different network
+
+**Setup**
+A device begins pushing a backlog. Twenty chunks are queued. The connectivity window
+closes after chunk 7 — mid-byte, not on a chunk boundary. Hours later the device
+finds a different network and tries again.
+
+**Concurrency**
+None. This is resumability.
+
+**Naive outcome**
+The session restarts from chunk 1. On a 90-second, 20 kbps window that fits roughly 7
+chunks, **the transfer never completes** — every window re-sends the same first 7
+chunks and dies. The device syncs forever and converges never. This matches the
+reported field symptom of a sync that "runs but never finishes".
+
+**Desired outcome**
+
+| Property | Requirement |
+|---|---|
+| Resume point | Chunk 8. The watermark is the highest **contiguously** acknowledged chunk. |
+| Retransmission | Zero re-sent chunks on a clean resume |
+| Partial chunk 8 | Discarded and re-sent whole. Partial frames are never applied. |
+| Durability | The watermark is persisted **before** the acknowledgement is sent to the peer |
+| Session identity | The new session references the prior one; the server does not treat it as a fresh backlog |
+
+⚠ The persist-then-ack ordering is not an optimisation detail. Acking before
+persisting means a crash loses data the peer believes was delivered — silent loss.
+The reverse order costs at most one duplicated chunk, and C-22 makes duplicates free.
+
+**Lattice** None. Session layer, Phase 3.
+
+**Review signal** None.
+
+**Vector** Phase 3 — `sessions/c21_resume_after_interruption.json`
+
+**Open** None.
+
+---
+
+### C-22 — One operation is delivered through two sessions concurrently
+
+**Setup**
+A device opens a session, pushes an operation, and the acknowledgement is lost in
+flight. The device retries — possibly on a different network, possibly while the
+first session is still open server-side. The server receives the same operation
+twice, separated by an arbitrary delay.
+
+**Concurrency**
+Not a data conflict. This is idempotence.
+
+**Naive outcome**
+Two shapes:
+
+- **Applied twice.** The measurement appears twice. C-01's review signal fires on a
+  duplicate the system created itself, and a supervisor is asked to adjudicate a
+  conflict that does not exist.
+- **Rejected as an error.** The session fails, the device retries, and it fails
+  again — a permanent stall caused by a lost acknowledgement.
+
+A short-lived dedup cache handles the immediate retry and fails on the delayed one,
+which is the harder and more common case on this network.
+
+**Desired outcome**
+
+| Property | Requirement |
+|---|---|
+| Second application | A **no-op**. Not an error, not a duplicate. |
+| Operation id | `(device_id, hlc)` — globally unique without coordination |
+| Delay tolerance | Unbounded. A duplicate arriving four hours later is still a no-op. |
+| Storage | The seen-set is bounded: the version vector is the frontier, and only operations above it are held explicitly |
+
+**Lattice** None directly, though idempotent application is the same property the
+lattice laws provide at the merge level.
+
+**Review signal** None.
+
+**Vector** Phase 3 — `sessions/c22_duplicate_operation_delivery.json`
+
+**Open** None.
+
+---
+
+### C-23 — A device is restored from a backup and replays already-synced operations
+
+**Setup**
+A phone is replaced or factory-reset and restored from a backup taken two weeks ago.
+The restored device's outbox contains operations that were synced after the backup
+was taken. It reconnects and pushes them.
+
+**Concurrency**
+The restored state is stale, not concurrent — it is a **prefix** of what the server
+already has.
+
+**Naive outcome**
+Every operation between the backup and the reset is applied a second time. Two weeks
+of measurements are duplicated across the affected records. Worse, the restored
+device's HLC state has regressed, so it re-issues HLC values it has already used —
+breaking the uniqueness that operation ids depend on.
+
+**Desired outcome**
+
+| Property | Requirement |
+|---|---|
+| Replayed operations | Rejected as already-seen, by version vector, without per-operation lookup |
+| Duplicate measurements | None |
+| HLC regression | Detected. The device adopts the server's view on receive, so its clock advances past its own prior maximum. |
+| Genuinely unsynced work | Preserved and applied — a backup restore must not discard operations that never reached the server |
+
+**Lattice** None. Version vector and session layer.
+
+**Review signal** `replica_state_regressed` — a device whose version vector is
+strictly dominated by the server's record of it has lost state, which is worth an
+operational alert even when handled correctly.
+
+⚠ The last row is the trap. The naive fix — "reject everything from a regressed
+device" — discards work that was legitimately never synced. The version vector
+distinguishes the two cases exactly; nothing coarser does.
+
+**Vector** Phase 3 — `sessions/c23_backup_restore_replay.json`
+
+**Open** None.
+
+---
+
+### C-24 — Two devices are assigned the same device id
+
+**Setup**
+An operations mistake during enrolment — a cloned device image, a copy-pasted
+configuration, a re-flashed phone re-using a retired id. Two physically distinct
+devices now issue operations under one `device_id`.
+
+**Concurrency**
+Everything both devices do is, from the system's view, one device's causal history —
+which it is not.
+
+**Naive outcome**
+This is the quietest and worst failure in the catalogue.
+
+HLC ties break on `device_id` to make the total order deterministic across replicas
+(roadmap §6.1). With duplicate ids, two genuinely different operations can produce
+**identical HLC triples**. The total order is no longer total, `(device_id, hlc)`
+operation ids collide, and one operation is silently discarded as a duplicate of the
+other. Version vectors track a single entry for what are actually two divergent
+histories, so each device's operations appear already-seen to the other.
+
+Replicas diverge permanently and **every invariant still passes locally**. Nothing
+reports an error. Data disappears with no signal at all.
+
+**Desired outcome**
+
+| Property | Requirement |
+|---|---|
+| Detection | At **enrolment**, not at merge time. The server refuses to enrol a device id it has already issued to a live device key. |
+| Failure mode | Loud and immediate. Enrolment fails with an operational error naming both devices. |
+| Existing data | If detected after the fact, both histories are quarantined for manual reconciliation. Neither is discarded. |
+| Id generation | Device ids are server-issued at enrolment, bound to the device keypair — never derived from a hardware identifier that a clone would reproduce |
+
+**Lattice** None. Enrolment and identity, Phase 5.
+
+**Review signal** `duplicate_device_id` — operational alert, not a merge signal.
+
+⚠ **The simulator structurally cannot generate this scenario**, because the scenario
+generator assigns unique device ids by construction. It is therefore a permanent blind
+spot of the harness, and it is recorded as one in
+`docs/deliberate-bug-experiment.md` (WI-2.17) and `docs/honest-tradeoffs.md`
+(WI-6.6). This entry is the reason the blind-spot list exists.
+
+**Vector** Phase 5 — enrolment test, not a merge vector.
+
+**Open** None.
+
+---
+
+## Index
+
+| ID | Scenario | Lattice | Review signal | First expressible |
+|---|---|---|---|---|
+| C-01 | Concurrent weights, same morning | `MeasurementSeries` | `multiple_weights_same_day` | Phase 1 |
+| C-02 | Duplicate delivery of one reading | `MeasurementSeries` | — | Phase 1 |
+| C-03 | Correction of a correction | `MeasurementSeries` | `superseded_fork` (fork case) | Phase 1 |
+| C-04 | Disjoint fields union cleanly | field-wise | — | Phase 1 |
+| C-05 | Implausible `taken_at` | `MeasurementSeries` | `implausible_taken_at` | Phase 1 |
+| C-06 | Identical concurrent readings | `MeasurementSeries` | — | Phase 1 |
+| C-07 | Disjoint demographic edits | `LWWRegister` | — | Phase 1 |
+| C-08 | Concurrent register edit | `LWWRegister` | `concurrent_demographic_edit` | Phase 1 |
+| C-09 | Terminal status wins | `StatusLattice` | `reenrolment_after_graduation` | Phase 1 |
+| C-10 | Concurrent status branches | `StatusLattice` | `concurrent_status_transition` | Phase 1 |
+| C-11 | Delete versus update | tombstone + state | `delete_update_conflict` | Phase 1 |
+| C-12 | Clear versus update | `LWWRegister` | `concurrent_demographic_edit` | Phase 1 |
+| C-13 | Duplicate registration at two centres | identity | `duplicate_candidate` | **Phase 5** |
+| C-14 | Concurrent add, unobserved remove | `ORSet` | — | Phase 1 |
+| C-15 | Three-day clock lag | HLC | — | Phase 1 |
+| C-16 | Clock jump forward then back | HLC | — | Phase 1 |
+| C-17 | Session expiry mid-sync | session | — | **Phase 3** |
+| C-18 | Blob and metadata in separate lanes | queue | — | **Phase 3** |
+| C-19 | Server bulk correction versus offline edits | field-wise | `concurrent_demographic_edit` | Phase 1 |
+| C-20 | Six-month replica versus tombstone GC | `ORSet` + tombstones | `stale_replica_beyond_retention` | **Phase 3** |
+| C-21 | Resume after mid-transfer interruption | session | — | **Phase 3** |
+| C-22 | Duplicate operation delivery | session | — | **Phase 3** |
+| C-23 | Backup restore replay | version vector | `replica_state_regressed` | **Phase 3** |
+| C-24 | Duplicate device id | enrolment | `duplicate_device_id` | **Phase 5** |
+
+**16 entries are expressible as Phase 1 merge vectors.** The remaining 8 require
+session, identity or enrolment machinery and are annotated with the phase that can
+first express them, per WI-1.15.
+
+### Review signals declared here
+
+`multiple_weights_same_day` · `superseded_fork` · `implausible_taken_at` ·
+`concurrent_demographic_edit` · `reenrolment_after_graduation` ·
+`concurrent_status_transition` · `delete_update_conflict` · `duplicate_candidate` ·
+`stale_replica_beyond_retention` · `replica_state_regressed` · `duplicate_device_id`
+
+Eleven signals. The registry with wire codes and payload shapes is
+[review-signals.md](review-signals.md), written in Phase 1 (WI-1.13).
+
+### Coverage check
+
+- Every entry states its desired outcome field by field. ✔
+- Every entry names its lattice and whether it emits a signal. ✔
+- Every entry records the naive-LWW outcome. ✔
+- No entry contains "sensibly", "appropriately" or "as expected". ✔
+- 24 entries ≥ the 20 required by the Phase 0 exit criterion. ✔
