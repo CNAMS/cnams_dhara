@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CNAMS/cnams_dhara/spec/conformance/schema.json",
+  "title": "dhara conformance vector",
+  "description": "A language-agnostic test case that every dhara implementation must reproduce identically. Divergence between implementations is a build failure.",
+
+  "type": "object",
+  "required": ["name", "kind", "catalogue"],
+  "additionalProperties": false,
+
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Stable identifier. Never renamed - test output and failure reports reference it."
+    },
+    "kind": {
+      "enum": ["hlc", "merge", "session"],
+      "description": "Which runner executes this vector."
+    },
+    "catalogue": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^C-[0-9]{2}$" },
+      "description": "Catalogue entries this vector covers. Every vector traces to at least one; a vector covering nothing in the catalogue is testing something nobody decided was correct."
+    },
+    "description": { "type": "string" },
+    "phase": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 6,
+      "description": "Earliest phase whose machinery can run this vector."
+    },
+
+    "schema": {
+      "$ref": "#/$defs/schemaDescriptor",
+      "description": "Required for merge vectors. Neutral field ids only - never domain vocabulary."
+    },
+    "replicas": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[A-Z][A-Za-z0-9]*$" },
+      "additionalProperties": { "$ref": "#/$defs/replicaState" },
+      "description": "Replica states to be joined. The runner applies EVERY permutation of replica order; results must be identical across all of them."
+    },
+    "operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/hlcOperation" },
+      "description": "Required for hlc vectors. A transcript of send/receive operations."
+    },
+    "transcript": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "Required for session vectors. Frames and expected responses. Shape defined in phase 3."
+    },
+
+    "expected": {
+      "type": "object",
+      "description": "The required merged state. Compared in canonical form, field-wise."
+    },
+    "expected_signals": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reviewSignal" },
+      "description": "Review signals the join must emit. Order-independent, compared as a set. An empty array asserts NO signals - which is a real assertion, not a default."
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "merge" } } },
+      "then": { "required": ["schema", "replicas", "expected", "expected_signals"] }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "hlc" } } },
+      "then": { "required": ["operations", "expected"] }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "session" } } },
+      "then": { "required": ["transcript"] }
+    }
+  ],
+
+  "$defs": {
+    "schemaDescriptor": {
+      "type": "object",
+      "required": ["name", "fields"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "lattice"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^(m|d|st|set|g)_[a-z0-9_]+$",
+                "description": "Neutral field id. Prefix declares the lattice family: m_ measurement, d_ demographic register, st_ status, set_ or-set, g_ g-set."
+              },
+              "lattice": {
+                "enum": ["MeasurementSeries", "LWWRegister", "StatusLattice", "ORSet", "GSet"]
+              },
+              "dedup_on": {
+                "type": "array",
+                "items": { "enum": ["taken_at", "recorded_by", "value"] },
+                "description": "MeasurementSeries only. Default (taken_at, recorded_by, value). Deliberately excludes the HLC - see merge-semantics.md section 4."
+              },
+              "order": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "StatusLattice only. The declared partial order, least to greatest. Supplied by the vector because in production it is supplied by the consumer, never by dhara."
+              },
+              "scale": {
+                "type": "integer",
+                "description": "MeasurementSeries only. Decimal places, or 0 for integer minor units. Pending DOUBTS.md D-04."
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "replicaState": {
+      "type": "object",
+      "propertyNames": { "pattern": "^(m|d|st|set|g)_[a-z0-9_]+$" },
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "array", "items": { "$ref": "#/$defs/measurementEntry" } },
+          { "$ref": "#/$defs/registerValue" },
+          { "type": "string" },
+          { "type": "array", "items": { "$ref": "#/$defs/setElement" } }
+        ]
+      }
+    },
+
+    "measurementEntry": {
+      "type": "object",
+      "required": ["value", "taken_at", "recorded_by", "hlc"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": ["number", "string"] },
+        "taken_at": { "type": "string" },
+        "recorded_by": {
+          "type": "string",
+          "description": "Worker id, not device id - see DOUBTS.md D-05."
+        },
+        "hlc": { "$ref": "#/$defs/hlc" },
+        "supersedes": {
+          "type": ["string", "null"],
+          "description": "Optional reference to a superseded entry. See DOUBTS.md D-03."
+        }
+      }
+    },
+
+    "registerValue": {
+      "type": "object",
+      "required": ["value", "hlc", "author"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": ["string", "number", "boolean", "null"],
+                   "description": "null is a VALUE meaning cleared, not an absence. See C-12." },
+        "hlc": { "$ref": "#/$defs/hlc" },
+        "author": { "type": "string" },
+        "history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/registerValue" },
+          "description": "Retained losers. Never empty after a concurrent edit."
+        }
+      }
+    },
+
+    "setElement": {
+      "type": "object",
+      "required": ["element"],
+      "additionalProperties": false,
+      "properties": {
+        "element": { "type": "string" },
+        "tag": { "$ref": "#/$defs/hlc" },
+        "removed_tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hlc" },
+          "description": "Tags this replica has observed as removed. ORSet only."
+        }
+      }
+    },
+
+    "hlc": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        { "type": "integer", "minimum": 0, "description": "physical time, ms since epoch" },
+        { "type": "integer", "minimum": 0, "description": "logical counter" },
+        { "type": "string", "description": "node id - the tiebreak that makes the order total across replicas" }
+      ],
+      "items": false
+    },
+
+    "hlcOperation": {
+      "type": "object",
+      "required": ["op"],
+      "additionalProperties": false,
+      "properties": {
+        "op": { "enum": ["send", "receive"] },
+        "node": { "type": "string" },
+        "physical_time": { "type": "integer" },
+        "remote": { "$ref": "#/$defs/hlc" },
+        "expect": { "$ref": "#/$defs/hlc" }
+      }
+    },
+
+    "reviewSignal": {
+      "type": "object",
+      "required": ["code"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "multiple_weights_same_day",
+            "superseded_fork",
+            "implausible_taken_at",
+            "concurrent_demographic_edit",
+            "reenrolment_after_graduation",
+            "concurrent_status_transition",
+            "delete_update_conflict",
+            "duplicate_candidate",
+            "stale_replica_beyond_retention",
+            "replica_state_regressed",
+            "duplicate_device_id"
+          ],
+          "description": "Closed set. Declared by conflict-catalogue.md; adding one requires a catalogue entry that needs it."
+        },
+        "fields": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
