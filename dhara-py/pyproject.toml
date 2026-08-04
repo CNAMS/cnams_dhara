@@ -39,3 +39,54 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["dhara"]
+
+# ---------------------------------------------------------------- ruff ---
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["dhara", "sim", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "N",         # pep8-naming
+    "UP",        # pyupgrade
+    "B",         # bugbear
+    "A",         # builtin shadowing
+    "C4",        # comprehensions
+    "RET",       # return simplification
+    "SIM",       # simplification
+    "PTH",       # use pathlib
+    "RUF",       # ruff-specific
+]
+ignore = [
+    # Assertions in the invariant checkers and property tests are the point.
+    "B011",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests may shadow builtins in fixtures and use magic values freely.
+"tests/**" = ["A", "N806"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# ---------------------------------------------------------------- mypy ---
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+warn_return_any = true
+disallow_any_explicit = false
+show_error_codes = true
+files = ["dhara", "sim", "tests"]
+
+[[tool.mypy.overrides]]
+# The simulator constructs states dynamically from seeded scenarios; full
+# strictness there costs more than it catches.
+module = "sim.*"
+disallow_any_generics = false
