@@ -15,13 +15,13 @@ Markers: `[gate]` phase exit depends on it · `[stretch]` cut first when slippin
 | Phase | Weeks | Items | Done | Status |
 |---|---|---|---|---|
 | 0 — Conflict catalogue and spec | 1–2 | 15 | 13 | **exit blocked** — WI-0.0 and WI-0.14 |
-| 1 — Clocks and lattices | 3–5 | 18 | 14 | in progress — merge vectors remain |
+| 1 — Clocks and lattices | 3–5 | 18 | 18 | **criteria met, tag withheld** — see [exit review](../docs/phase-1-exit.md) |
 | 2 — The simulator | 6–9 | 22 | 0 | not started |
 | 3 — Delta sync and session protocol | 10–13 | 16 | 0 | not started |
 | 4 — Dart client and CGMS integration | 14–16 | 12 | 0 | not started |
 | 5 — Security and identity | 17–20 | 11 | 0 | not started |
 | 6 — Field deployment and write-up | 21–24 | 11 | 0 | not started |
-| **Total** | **24** | **105** | **27** | |
+| **Total** | **24** | **105** | **31** | |
 
 ---
 
@@ -64,10 +64,10 @@ protocol draft with every failure edge · [full checklist](phase-0-catalogue-and
 - [x] **WI-1.11** StatusLattice
 - [x] **WI-1.12** Schema descriptor API
 - [x] **WI-1.13** Review signal emission
-- [ ] **WI-1.14** Conformance runner
-- [ ] **WI-1.15** Merge vectors from the catalogue `[spec]` `[gate]`
-- [ ] **WI-1.16** Complete merge-semantics.md `[spec]` `[gate]`
-- [ ] **WI-1.17** Phase 1 exit review `[gate]`
+- [x] **WI-1.14** Conformance runner
+- [x] **WI-1.15** Merge vectors from the catalogue `[spec]` `[gate]`
+- [x] **WI-1.16** Complete merge-semantics.md `[spec]` `[gate]`
+- [x] **WI-1.17** Phase 1 exit review `[gate]`
 
 **Exit gate:** laws green over 10,000 orders per lattice · HLC correct under ±3 days
 skew · rationale written, not just the choice ·
@@ -198,7 +198,7 @@ was optimistic · `v0.1.0` tagged ·
 ## Tags
 
 - [ ] `phase-0-complete`
-- [ ] `phase-1-complete`
+- [ ] `phase-1-complete` — criteria met; withheld until phase 0 exits and CI runs
 - [ ] `phase-2-complete`
 - [ ] `phase-3-complete`
 - [ ] `v0.1.0-rc` — wire protocol frozen, CGMS switches to pinned tags

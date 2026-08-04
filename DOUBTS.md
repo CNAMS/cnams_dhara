@@ -13,6 +13,12 @@ committed spec.
 **Read the 🔴 entries first.** They block or invalidate work if the assumption is
 wrong.
 
+⚠ **Four doubts moved from "assumed" to "committed to" during Phase 1** — D-02,
+D-03, D-04 and D-05 are now encoded in twelve conformance vectors and in both the
+schema API and the wire format. Reversing any of them is a spec change plus a
+vector rewrite, not an edit. The cheap moment to object has passed; they are
+still worth confirming, because the cost only grows from here.
+
 | Field | Meaning |
 |---|---|
 | **Hit while** | The work item that surfaced it |
@@ -34,10 +40,10 @@ wrong.
 | ID | Severity | One line | Status |
 |---|---|---|---|
 | [D-01](#d-01) | 🟠 | Where exactly does the domain-token checker apply? | resolved in-plan |
-| [D-02](#d-02) | 🔴 | `keep_losers` is a flag in the roadmap and semantics in the plan | open |
-| [D-03](#d-03) | 🟠 | `supersedes` chains on `MeasurementSeries` may be scope creep | open |
-| [D-04](#d-04) | 🔴 | Canonical numeric encoding must be settled before any vector | open |
-| [D-05](#d-05) | 🔴 | Is `recorded_by` a worker id or a device id? | open |
+| [D-02](#d-02) | 🔴 | `keep_losers` is a flag in the roadmap and semantics in the plan | **committed to** |
+| [D-03](#d-03) | 🟠 | `supersedes` chains on `MeasurementSeries` may be scope creep | **committed to** |
+| [D-04](#d-04) | 🔴 | Canonical numeric encoding must be settled before any vector | **committed to** |
+| [D-05](#d-05) | 🔴 | Is `recorded_by` a worker id or a device id? | **committed to** |
 | [D-06](#d-06) | 🟠 | Wire protocol version `1` versus a spec called `v0.1` | open |
 | [D-07](#d-07) | 🟢 | "Same calendar day" needs a timezone that may not be needed | open |
 | [D-08](#d-08) | 🟠 | Device ids assumed server-issued at enrolment | open |

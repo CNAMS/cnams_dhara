@@ -12,7 +12,8 @@ three very different reasons:
 | 🚧 **Blocked on a decision** | Written, but resting on an assumption only you can confirm. → [DOUBTS.md](DOUBTS.md) |
 | 🌍 **Not doable from here** | Needs hardware, a network, a runner, or another human. |
 
-Last updated at 74 commits · Phase 0 at 13/15 · Phase 1 at 14/18.
+Last updated at 83 commits · Phase 0 at 13/15 · **Phase 1 at 18/18 — criteria met, tag withheld.**
+Next: Phase 2, the simulator.
 
 ---
 
@@ -97,12 +98,16 @@ The clock layer is done. The lattice layer is not.
 
 | WI | Item | Notes |
 |---|---|---|
-| ~~1.6–1.13~~ | ~~Lattices, schema, review signals~~ | **Done.** Five lattices, schema descriptor, field-wise record join, signal derivation. 91 tests green. |
-| 1.13b | `spec/review-signals.md` | The registry document. Codes exist in `review.py`; the wire-format spec does not. |
-| 1.14 | Conformance runner (merge) | All `n!` permutations of replica order |
-| 1.15 | Merge vectors `[gate]` | 16 of the 24 catalogue entries are expressible here |
-| 1.16 | Complete `merge-semantics.md` `[gate]` | The rationale sections; skeleton exists |
-| 1.17 | Phase 1 exit review `[gate]` | 10,000 orders per lattice, green |
+| ~~1.0–1.17~~ | ~~All of Phase 1~~ | **Done.** HLC, five lattices, schema, review signals, conformance runners, 18 vectors. 138 tests green; laws verified at the 10,000-example gate budget. [Exit review](docs/phase-1-exit.md). |
+
+**Next: Phase 2 — the simulator.** 22 work items, timeboxed to four weeks. It is
+where "I believe this is correct" becomes "here is a search that failed to find a
+counterexample, and here is proof the search would have found one."
+
+⚠ Phase 1 surfaced the Phase 2 lesson three weeks early: mutation M4 passed the
+entire property suite because the strategies built values with the constructor and
+never called `remove()`. WI-2.9's scenario generator has the same failure mode at a
+much larger scale — generate by **driving operations**, not by constructing states.
 
 ### Phases 2–6
 
@@ -149,7 +154,7 @@ Not forgotten — decided against, for a stated reason.
    substitutes for it.
 2. **Answer D-04.** It is the cheapest decision to make now and the most expensive to
    change later.
-3. Finish Phase 1's lattice layer — WI-1.6 through WI-1.17.
+3. ~~Finish Phase 1's lattice layer.~~ Done.
 4. Do not start Phase 3 before Phase 2's exit checklist is fully ticked. A verified
    merge layer with no network layer is a real contribution; two half-finished layers
    are not.
