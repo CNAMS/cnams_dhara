@@ -61,6 +61,7 @@ table name hardcoded. It receives a schema descriptor at runtime.
 | [EXECUTION.md](EXECUTION.md) | The execution plan index — 24 weeks, 7 phases, week-by-week. |
 | [plan/](plan/) | Per-phase work breakdowns, down to individual commits. |
 | [DOUBTS.md](DOUBTS.md) | Every assumption execution is resting on, and what it costs if wrong. |
+| [LEFTOVER.md](LEFTOVER.md) | What remains, what is blocked, and what cannot be done from a keyboard. |
 | `spec/` | Wire protocol, merge semantics, conflict catalogue, conformance vectors. *(Phase 0+)* |
 | `dhara-py/` | Python implementation + deterministic simulator. *(Phase 1+)* |
 | `dhara-dart/` | Dart implementation for the Flutter client. *(Phase 4+)* |

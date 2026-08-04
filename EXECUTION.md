@@ -105,6 +105,7 @@ the commit ladder is that resuming never requires reconstructing where you were.
 | [plan/risk-register.md](plan/risk-register.md) | Live risks with owners, triggers, and mitigations |
 | [plan/open-questions.md](plan/open-questions.md) | Roadmap §12 questions, tracked to resolution |
 | [DOUBTS.md](DOUBTS.md) | Assumptions execution is resting on. **Read the 🔴 entries before starting a phase.** |
+| [LEFTOVER.md](LEFTOVER.md) | Remaining work, split by whether it is buildable, blocked on a decision, or needs the physical world |
 | [plan/tracking-board.md](plan/tracking-board.md) | Checkbox state of every work item |
 | [plan/decision-log.md](plan/decision-log.md) | Append-only log of decisions and their reasons |
 
