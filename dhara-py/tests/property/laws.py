@@ -14,6 +14,7 @@ catalogue spends 24 entries arguing against.
 
 from __future__ import annotations
 
+import os
 from typing import Callable, TypeVar
 
 from hypothesis import strategies as st
@@ -23,9 +24,17 @@ from dhara.lattice.base import Lattice
 T = TypeVar("T", bound=Lattice)
 
 #: Roadmap Phase 1 exit criterion: 10,000 randomised operation orders per type.
-#: Hypothesis draws examples rather than enumerating orders, so the budget is
-#: split between example count and the operation-sequence length inside each.
-LAW_EXAMPLES = 1_000
+#:
+#: Tiered the same way as the simulator's seed corpus, and for the same reason:
+#: the full budget is a **gate measurement**, not a per-push cost. A CI you wait
+#: for is a CI you start skipping.
+#:
+#:     push      1,000 examples   (default)
+#:     gate     10,000 examples   DHARA_LAW_EXAMPLES=10000
+#:
+#: The gate figure is what the phase exit is checked against and what the
+#: nightly workflow runs.
+LAW_EXAMPLES = int(os.environ.get('DHARA_LAW_EXAMPLES', '1000'))
 LAW_SEQUENCE = 10
 
 

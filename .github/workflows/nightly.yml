@@ -1,0 +1,35 @@
+name: nightly
+
+on:
+  schedule:
+    # 02:00 UTC. Nothing depends on the exact hour; a fixed one makes the runs
+    # comparable night to night.
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: dhara-py
+
+jobs:
+  gate-budget:
+    # The full property budget is a gate measurement, not a per-push cost.
+    # Running it on every push would make the loop unusable and would not find
+    # anything a nightly run misses within a week. Same tiering as the
+    # simulator's seed corpus - see plan/ci-and-tooling.md section 4.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --all-groups
+
+      - name: Algebraic laws at the phase-exit budget
+        env:
+          DHARA_LAW_EXAMPLES: "10000"
+        run: uv run pytest -q -m property
+
+      - name: Conformance vectors
+        run: uv run pytest -q -m conformance
