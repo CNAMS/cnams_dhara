@@ -45,6 +45,8 @@ wrong.
 | [D-10](#d-10) | 🟠 | CI workflow is unverified — no runner has executed it | open |
 | [D-11](#d-11) | 🟢 | The 90% coverage gate is currently meaningless | open |
 | [D-12](#d-12) | 🔴 | WI-0.0 field access is a real-world action nobody has taken | open |
+| [D-13](#d-13) | 🟠 | Fourteen commit subjects exceed the 72-char limit the hook now enforces | open |
+| [D-14](#d-14) | 🟢 | WI-1.0 was done before Phase 0's exit gate | noted |
 
 ---
 
@@ -399,6 +401,68 @@ for it, and it is worth doing before the next line of code is written.
 ⚠ Also ask the Q5 question in the same conversation — whether ICDS requires an
 Aadhaar-adjacent identity path — because the answer constrains the Phase 5 design and
 has the same lead time.
+
+---
+
+<a id="d-13"></a>
+## D-13 — Fourteen commit subjects exceed the limit the hook now enforces 🟠
+
+**Hit while** WI-0.13, running `scripts/check_commit_message.py` over the existing
+history as a self-check.
+
+**Doubt**
+[plan/commit-conventions.md](plan/commit-conventions.md) §1 sets the subject limit at
+**72 characters**, and the hook enforces it. **Fourteen commits already on `main`
+violate it**, by between 1 and 14 characters. They were written before the hook
+existed.
+
+Two defensible responses and one indefensible one:
+
+| Option | |
+|---|---|
+| Rewrite history to shorten them | Clean result. Requires a force-push, which rewrites every SHA. The repository is days old with no external consumer, so the blast radius is small — but it is still a destructive push to a shared remote. |
+| Leave them and enforce going forward | Honest, zero risk, leaves a visibly inconsistent history for its first 34 commits. |
+| Relax the documented limit to a number the existing commits meet | **Rejected.** That is rationalising a rule to match a violation, and the rule is a reasonable one. |
+
+**Assumed**
+The second. The limit stays at 72, the hook enforces it from now on, and the existing
+fourteen stand as-is.
+
+**Cost if wrong** Cosmetic. `git log --oneline` wraps for those fourteen entries in a
+narrow terminal.
+
+**Resolves by** Your call. If you want the rewrite, it is
+`git filter-branch`/`git filter-repo` plus a force-push, and it should happen **now**
+rather than after the CGMS repository starts citing SHAs — a rewritten SHA breaks
+every cross-repo reference, and the plan calls for those from week 14.
+
+⚠ I did not force-push. Rewriting published history is not a call to make
+unprompted.
+
+---
+
+<a id="d-14"></a>
+## D-14 — WI-1.0 was completed before Phase 0's exit gate 🟢
+
+**Hit while** WI-0.13.
+
+**Doubt**
+The plan says: *"Do not start Phase 1 with an unticked box."* WI-1.0 (the
+domain-token checker) is a Phase 1 item, and it was implemented during Phase 0.
+
+**Assumed**
+Justified by a dependency the plan did not anticipate: `.pre-commit-config.yaml`
+(WI-0.13) **references** `scripts/check_no_domain_imports.py`. Committing the hook
+config first would have left a broken hook chain — every commit failing on a missing
+script — which is worse than a small ordering violation.
+
+**Cost if wrong** None. WI-1.0 is a gate for Phase 1, not for Phase 0, and doing it
+early strictly reduces risk: the dependency rule was enforced from the first line of
+engine code rather than after it.
+
+**Resolves by** Noted rather than resolved. Worth reflecting back into
+[plan/phase-0-catalogue-and-spec.md](plan/phase-0-catalogue-and-spec.md) if the plan
+is ever revised: WI-1.0 is a natural Phase 0 item.
 
 ---
 
