@@ -11,14 +11,14 @@ is the evidence that these numbers mean anything.
 
 | Criterion | Target | Measured | |
 |---|---|---|---|
-| Randomised schedules converge, no measurement loss | 1,000,000 | **20,000** (973,819 operations) | ⛔ gate not run locally |
+| Randomised schedules converge, no measurement loss | 1,000,000 | **70,000** (3,384,338 operations) | ⛔ gate not run locally |
 | Deliberate-bug experiment detects the injected fault | < 1,000 seeds | **seed 1** (M1) | ✅ |
 | Experiment written up, including what it cannot catch | — | done | ✅ |
 | Six fault classes injectable | 6 | 6 | ✅ |
 | Every invariant has a test proving it can fail | — | 8 invariants, 11 tests | ✅ |
 | `replay_seed.sh <n>` → rendered timeline in one command | — | works | ✅ |
 | Identical seeds produce identical traces | — | verified | ✅ |
-| Throughput | ≥ 500 schedules/s/core | **43/s/core, 206/s across 8** | ⚠ see below |
+| Throughput | ≥ 500 schedules/s/core | **42/s/core, 141/s across 8** | ⛔ 12× short |
 | Nightly sweep + regression corpus in the push pipeline | — | committed, never run | ⚠ |
 
 **Phase 2 is not complete.** Two criteria are outstanding and both are recorded
@@ -29,13 +29,20 @@ here rather than rounded off.
 ## What was measured
 
 ```
-20,000 schedules in 691.0s, 973,819 operations - all invariants held
+70,000 schedules in 495.3s (141/s), 3,384,338 operations - all invariants held
 ```
 
-Nearly a million **operations** across twenty thousand independent worlds. The
-operation count is the more meaningful of the two figures at this scale: a
-schedule is a container, and what the invariants actually check is every write,
-delivery, merge and crash inside it.
+**3.4 million operations across seventy thousand independent worlds.** The
+operation count is the more meaningful of the two figures: a schedule is a
+container, and what the invariants actually examine is every write, delivery,
+merge and crash inside it.
+
+⚠ **Earlier throughput figures in this repository's history were wrong.** A
+measurement taken while 27 orphaned processes from previous runs were still
+consuming CPU reported 5 schedules/s; the load average was 150. Numbers below
+were taken on a verified-quiet machine. The lesson is general and applies to
+every number this project will publish: **a benchmark that does not check what
+else is running is measuring the machine, not the code.**
 
 Fault activity across a representative 20-seed sample:
 
@@ -95,10 +102,10 @@ order of magnitude of it. It found two real defects (seeds 1041 and 1424) and
 establishes that the harness is sensitive — but it is not the exit criterion and
 is not reported as one.
 
-**Why it has not been run here.** The development machine's sandbox terminates
-long multi-process jobs (exit 144), and multi-hour single-process runs do not
-survive either. Sharded runs reached 206 schedules/s in short bursts and were
-killed before completing.
+**Why it has not been run here.** At a verified 141 schedules/s sharded, the gate
+is ~1.9 hours. The development sandbox terminates any job outliving its
+originating call — including `setsid nohup` detached ones — so 495 seconds is
+the longest run achievable. 70,000 schedules is what fits.
 
 **Where it will be run:** `.github/workflows/nightly.yml` shards the full million
 across four scheduled jobs, each using every core its runner has. That workflow

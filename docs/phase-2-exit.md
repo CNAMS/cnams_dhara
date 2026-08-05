@@ -9,7 +9,7 @@
 
 | # | Criterion | Result |
 |---|---|---|
-| 1 | **1,000,000 randomised schedules** converge with no measurement loss | ⛔ **20,000 run** (973,819 operations), all green. Gate not run. |
+| 1 | **1,000,000 randomised schedules** converge with no measurement loss | ⛔ **70,000 run** (3,384,338 operations), all green. Gate not run. |
 | 2 | The deliberate-bug experiment finds the injected fault within 1,000 seeds | ✅ **seed 1** for M1, the mutation the roadmap names |
 | 3 | The experiment is written up, including what the harness cannot catch | ✅ [deliberate-bug-experiment.md](deliberate-bug-experiment.md) |
 | 4 | All six §7.1 fault classes injectable | ✅ |
@@ -17,7 +17,7 @@
 | 6 | `replay_seed.sh <n>` → timeline in one command | ✅ |
 | 7 | Shrinking reduces a known failure to a minimal reproducer | ✅ 3 devices/3 records/18 writes → 2/1/4, no faults |
 | 8 | Identical seeds produce identical traces | ✅ |
-| 9 | Throughput ≥ 500 schedules/s/core | ⛔ **43/s/core** (206/s across 8) |
+| 9 | Throughput ≥ 500 schedules/s/core | ⛔ **42/s/core** (141/s across 8) |
 | 10 | Nightly sweep and regression corpus running | ⚠ committed, **never executed** |
 
 **156 tests green.**
