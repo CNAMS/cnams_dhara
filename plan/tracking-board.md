@@ -17,11 +17,11 @@ Markers: `[gate]` phase exit depends on it · `[stretch]` cut first when slippin
 | 0 — Conflict catalogue and spec | 1–2 | 15 | 13 | **exit blocked** — WI-0.0 and WI-0.14 |
 | 1 — Clocks and lattices | 3–5 | 18 | 18 | **criteria met, tag withheld** — see [exit review](../docs/phase-1-exit.md) |
 | 2 — The simulator | 6–9 | 22 | 21 | **exit blocked** — see [review](../docs/phase-2-exit.md) |
-| 3 — Delta sync and session protocol | 10–13 | 16 | 0 | not started |
+| 3 — Delta sync and session protocol | 10–13 | 16 | 2 | in progress |
 | 4 — Dart client and CGMS integration | 14–16 | 12 | 0 | not started |
 | 5 — Security and identity | 17–20 | 11 | 0 | not started |
 | 6 — Field deployment and write-up | 21–24 | 11 | 0 | not started |
-| **Total** | **24** | **105** | **52** | |
+| **Total** | **24** | **105** | **54** | |
 
 ---
 
@@ -110,8 +110,8 @@ seeds · the experiment written up including what the harness *cannot* catch ·
 
 ## Phase 3 — Delta sync and session protocol `weeks 10–13`
 
-- [ ] **WI-3.0** Version vectors
-- [ ] **WI-3.1** Delta-state computation `[gate]`
+- [x] **WI-3.0** Version vectors
+- [x] **WI-3.1** Delta-state computation `[gate]` — sound via `SeenSet`; compact form blocked on [D-16](../DOUBTS.md#d-16)
 - [ ] **WI-3.2** Operation identity and idempotence
 - [ ] **WI-3.3** Chunk framing
 - [ ] **WI-3.4** Acknowledged offsets and resumption `[gate]`

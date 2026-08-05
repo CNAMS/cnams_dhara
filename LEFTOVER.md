@@ -83,6 +83,8 @@ cost grows with every phase.
 | [D-04](DOUBTS.md#d-04) | How are decimals encoded canonically across Python and Dart? | **Integer minor units, scale declared in the schema.** | Every merge vector rewritten. Cheapest possible moment is before WI-1.15. |
 | [D-05](DOUBTS.md#d-05) | Is `recorded_by` a worker id or a device id? | **Worker id**, consistent with C-17 and roadmap §6.5. | Changes the dedup key, so C-02 and C-06 and their vectors. Also implies operations carry a worker id from Phase 1, not Phase 5. |
 | [D-03](DOUBTS.md#d-03) | Do measurement entries need `supersedes` chains? | **Yes** — because the catalogue says so, and the rule is that implementation follows spec, never the reverse. I still lean toward the simpler pure-set version. | A spec change plus a wire-format change after Phase 3. |
+| [D-16](DOUBTS.md#d-16) 🔴 | Should operations carry a per-replica sequence number? | **Worked around** with an exact seen-set, which is sound but grows with operation count. | **Must be settled before WI-3.13.** The six-month backlog scenario is the Phase 3 exit criterion and is exactly where the workaround is most expensive — measuring it there produces a headline number about the workaround, not the design. |
+| [D-15](DOUBTS.md#d-15) | Should removes and statuses carry their own HLC? | **No** — they travel whole. | Bandwidth, on the network where bandwidth is the problem. Worth fixing before the bytes-per-record metric (WI-3.12) is published. |
 
 ⚠ **D-04 is the one to answer first.** Nothing is committed to yet, and it is the only
 one whose cost jumps discontinuously — the moment merge vectors exist, changing the
