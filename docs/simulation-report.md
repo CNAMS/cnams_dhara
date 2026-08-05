@@ -18,7 +18,7 @@ is the evidence that these numbers mean anything.
 | Every invariant has a test proving it can fail | — | 8 invariants, 11 tests | ✅ |
 | `replay_seed.sh <n>` → rendered timeline in one command | — | works | ✅ |
 | Identical seeds produce identical traces | — | verified | ✅ |
-| Throughput | ≥ 500 schedules/s/core | **24/s** | ⛔ 20× short |
+| Throughput | ≥ 500 schedules/s/core | **43/s/core, 206/s across 8** | ⚠ see below |
 | Nightly sweep + regression corpus in the push pipeline | — | committed, never run | ⚠ |
 
 **Phase 2 is not complete.** Two criteria are outstanding and both are recorded
@@ -54,29 +54,34 @@ is both what real devices do and what makes the model bite.
 
 ## The two outstanding criteria
 
-### Throughput: 24/s against a target of 500/s
+### Throughput: 43/s/core against a target of 500/s
 
-The million-schedule gate would take **~11.5 hours** on one core, or roughly 3
-hours across the four nightly shards. That is an overnight job, which the plan
-says it must be — but the per-core figure is 20× short of target and that is a
-real miss, not a rounding error.
+**Still 12× short per core**, and reported as short rather than reframed.
 
-Where the time goes, in order:
+Profiling — rather than guessing — found three fixable costs, worth 24/s → 43/s:
 
-1. **Full-state sync.** Every sync serialises the whole record set to JSON and
-   the peer decodes it. Phase 3 replaces this with delta transmission (WI-3.1),
-   which is expected to remove most of it — the simulator is currently paying
-   the exact cost the delta design exists to eliminate.
-2. **Long horizons.** Scenarios run up to 30 virtual days with windows every few
-   hours, so a single schedule processes hundreds of events.
-3. **Canonical form recomputed** on every convergence check.
+| Finding | |
+|---|---|
+| `snapshot_bytes()` re-serialised the entire state purely to measure it | Every sync serialised twice |
+| `commit()` serialised to JSON | A commit models an fsync, not a wire crossing, and `Record`s are immutable — a reference is as durable as a copy |
+| `Schema.field_names` rebuilt a tuple on every access | 135,000 constructions per 120-seed sample, for a value that cannot change |
 
-⚠ The plan's own guidance is to *"shrink the record space, not the fault
-variety"* — concurrency density finds bugs, scale does not. That has already
-been done (1–3 records). The remaining cost is structural and Phase 3 addresses
-it directly, so the honest position is: **run the gate as an overnight sharded
-job, and re-measure throughput after WI-3.1 rather than optimising the
-soon-to-be-replaced path now.**
+Plus **absorption short-circuits** on every lattice: `join(a, b) == a` whenever
+`b <= a`, which is exact by the lattice laws and is the common case here,
+because a re-delivered snapshot is usually a subset of what the receiver holds.
+
+What remains is **full-state serialisation**, which is inherent to Phase 2's
+sync model — the simulator is currently paying the exact cost the delta design
+exists to eliminate. Optimising it further would be optimising code that
+WI-3.1 deletes.
+
+**Sharding is the cheaper lever:** 206 schedules/s across 8 cores turns the
+million-schedule gate from ~11.5 hours into ~80 minutes. Seeds are independent
+worlds, so this changes nothing about determinism — seed 4471 produces the same
+run whichever worker executes it.
+
+**Re-measure per-core throughput after WI-3.1**, when the dominant cost is gone
+and the number means something about the design rather than about a placeholder.
 
 ### The million-schedule sweep has not been run
 

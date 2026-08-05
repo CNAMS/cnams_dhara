@@ -68,11 +68,14 @@ jobs:
       - run: uv sync --all-groups
 
       - name: Sweep shard ${{ matrix.shard }}
+        # 250k seeds per shard across 4 shards is the full million-schedule
+        # gate. Each shard uses every core the runner has; seeds are
+        # independent worlds, so sharding changes nothing about determinism.
         run: |
           uv run python -m sim.runner \
-            --start $(( ${{ matrix.shard }} * 25000 + 1 )) \
-            --seeds 25000 \
-            --progress 5000
+            --start $(( ${{ matrix.shard }} * 250000 + 1 )) \
+            --seeds 250000 \
+            --workers 4
 
       - name: Upload failing scenarios
         if: failure()
