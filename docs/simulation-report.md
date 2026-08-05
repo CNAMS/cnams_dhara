@@ -1,6 +1,6 @@
 # Simulation report
 
-**Phase 2 · measured at commit 103, Python 3.12.4, single core (Apple Silicon)**
+**Phase 2 · measured at commit 110, Python 3.12.4, Apple Silicon, 8 cores**
 
 Companion to [deliberate-bug-experiment.md](deliberate-bug-experiment.md), which
 is the evidence that these numbers mean anything.
@@ -11,7 +11,7 @@ is the evidence that these numbers mean anything.
 
 | Criterion | Target | Measured | |
 |---|---|---|---|
-| Randomised schedules converge, no measurement loss | 1,000,000 | **5,000** | ⛔ gate not run |
+| Randomised schedules converge, no measurement loss | 1,000,000 | **20,000** (973,819 operations) | ⛔ gate not run locally |
 | Deliberate-bug experiment detects the injected fault | < 1,000 seeds | **seed 1** (M1) | ✅ |
 | Experiment written up, including what it cannot catch | — | done | ✅ |
 | Six fault classes injectable | 6 | 6 | ✅ |
@@ -29,8 +29,13 @@ here rather than rounded off.
 ## What was measured
 
 ```
-5,000 schedules in 207.5s (24/s), 243,522 operations - all invariants held
+20,000 schedules in 691.0s, 973,819 operations - all invariants held
 ```
+
+Nearly a million **operations** across twenty thousand independent worlds. The
+operation count is the more meaningful of the two figures at this scale: a
+schedule is a container, and what the invariants actually check is every write,
+delivery, merge and crash inside it.
 
 Fault activity across a representative 20-seed sample:
 
@@ -83,11 +88,26 @@ run whichever worker executes it.
 **Re-measure per-core throughput after WI-3.1**, when the dominant cost is gone
 and the number means something about the design rather than about a placeholder.
 
-### The million-schedule sweep has not been run
+### The million-schedule sweep has not been run locally
 
-5,000 is 0.5% of the gate. It is enough to have found two real defects
-(seeds 1041 and 1424) and enough to establish that the harness is sensitive, but
-it is not the exit criterion and is not reported as one.
+20,000 is 2% of the gate by schedules, though the operation count is within an
+order of magnitude of it. It found two real defects (seeds 1041 and 1424) and
+establishes that the harness is sensitive — but it is not the exit criterion and
+is not reported as one.
+
+**Why it has not been run here.** The development machine's sandbox terminates
+long multi-process jobs (exit 144), and multi-hour single-process runs do not
+survive either. Sharded runs reached 206 schedules/s in short bursts and were
+killed before completing.
+
+**Where it will be run:** `.github/workflows/nightly.yml` shards the full million
+across four scheduled jobs, each using every core its runner has. That workflow
+is committed and **has never executed** — see
+[DOUBTS.md D-10](../DOUBTS.md#d-10), which has been open since Phase 0.
+
+⚠ The gate is therefore blocked on the same thing Phase 0's exit is blocked on:
+**no CI runner has ever executed anything in this repository.** That is one
+unblocking action away, and it unblocks two phase gates at once.
 
 ---
 
