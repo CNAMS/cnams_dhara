@@ -16,12 +16,12 @@ Markers: `[gate]` phase exit depends on it · `[stretch]` cut first when slippin
 |---|---|---|---|---|
 | 0 — Conflict catalogue and spec | 1–2 | 15 | 13 | **exit blocked** — WI-0.0 and WI-0.14 |
 | 1 — Clocks and lattices | 3–5 | 18 | 18 | **criteria met, tag withheld** — see [exit review](../docs/phase-1-exit.md) |
-| 2 — The simulator | 6–9 | 22 | 19 | in progress — million-schedule gate outstanding |
+| 2 — The simulator | 6–9 | 22 | 20 | in progress — million-schedule gate running |
 | 3 — Delta sync and session protocol | 10–13 | 16 | 0 | not started |
 | 4 — Dart client and CGMS integration | 14–16 | 12 | 0 | not started |
 | 5 — Security and identity | 17–20 | 11 | 0 | not started |
 | 6 — Field deployment and write-up | 21–24 | 11 | 0 | not started |
-| **Total** | **24** | **105** | **50** | |
+| **Total** | **24** | **105** | **51** | |
 
 ---
 
@@ -92,7 +92,7 @@ skew · rationale written, not just the choice ·
 - [x] **WI-2.12** Invariants: monotonicity and idempotence
 - [x] **WI-2.13** Crash injection
 - [x] **WI-2.14** Seed sweep runner
-- [ ] **WI-2.15** Shrinking — implemented, never exercised on a real failure
+- [x] **WI-2.15** Shrinking
 - [x] **WI-2.16** Replay and tracing
 - [x] **WI-2.17** The deliberate-bug experiment `[gate]` ⚠ the phase's whole point
 - [x] **WI-2.18** Nightly CI and the regression corpus
