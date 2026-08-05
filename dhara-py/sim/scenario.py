@@ -340,16 +340,13 @@ class Simulation:
         if device.down or device.is_server:
             return
 
-        payload = device.snapshot()
-        size = device.snapshot_bytes()
+        payload, size = device.snapshot_with_size()
         self.network.send(Message(device.replica_id, SERVER_ID, size, payload))
 
         server = self.replicas[SERVER_ID]
         if not server.down:
-            reply = server.snapshot()
-            self.network.send(
-                Message(SERVER_ID, device.replica_id, server.snapshot_bytes(), reply)
-            )
+            reply, reply_size = server.snapshot_with_size()
+            self.network.send(Message(SERVER_ID, device.replica_id, reply_size, reply))
         self._trace("sync", device=device.replica_id, bytes=size)
 
     def _on_message(self, message: Message) -> None:
@@ -383,9 +380,7 @@ class Simulation:
         excuses genuine merge losses whenever a crash happened to occur in the
         same run.
         """
-        durable = {
-            rid: self.schema_decode(blob) for rid, blob in replica.durable.items()
-        }
+        durable = dict(replica.durable)
         others = [r for r in self.replicas.values() if r is not replica and not r.down]
 
         for op in self.oplog.originated_by(replica.replica_id):
@@ -394,9 +389,6 @@ class Simulation:
             if any(self._present(o.records.get(op.record_id), op) for o in others):
                 continue
             self.oplog.mark_crash_lost(op)
-
-    def schema_decode(self, blob: str) -> Record:
-        return BENCH_SCHEMA.decode_record(json.loads(blob))
 
     @staticmethod
     def _present(record: Record | None, op: Operation) -> bool:

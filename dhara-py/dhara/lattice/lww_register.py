@@ -148,6 +148,11 @@ class LWWRegister:
     # -- lattice ----------------------------------------------------------
 
     def join(self, other: Self) -> Self:
+        # Absorption, exact by the lattice laws: join(a, b) == a when b <= a.
+        if other.observations_ <= self.observations_:
+            return self
+        if self.observations_ <= other.observations_:
+            return other
         return type(self)(self.observations_ | other.observations_)
 
     def leq(self, other: Self) -> bool:

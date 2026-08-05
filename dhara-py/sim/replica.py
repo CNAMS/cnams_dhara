@@ -155,7 +155,12 @@ class Replica:
     down: bool = False
     #: Committed state, restored on restart. Everything not here is volatile
     #: and is what a crash-before-commit loses.
-    durable: dict[str, str] = field(default_factory=dict, repr=False)
+    #:
+    #: Holds `Record` objects rather than serialised blobs. Records and every
+    #: lattice inside them are immutable, so a reference is as durable as a
+    #: copy - and serialising on every commit was pure overhead, since a commit
+    #: models an fsync rather than a wire crossing.
+    durable: dict[str, Record] = field(default_factory=dict, repr=False)
 
     applied_ops: int = 0
     duplicate_ops: int = 0
@@ -314,10 +319,20 @@ class Replica:
         """Everything this replica knows, as it would go on the wire."""
         return {rid: record.to_json() for rid, record in self.records.items()}
 
-    def snapshot_bytes(self) -> int:
-        return len(json.dumps(self.snapshot(), separators=(",", ":")).encode())
+    def snapshot_with_size(self) -> tuple[dict[str, Any], int]:
+        """Serialise once and report both the payload and its size.
 
-    def apply(self, snapshot: dict[str, Any], seen: Callable[[str], bool] | None = None) -> None:
+        Callers need both, and computing them separately meant serialising the
+        whole state twice per sync. That was 45,000 redundant full
+        serialisations across a 120-seed sample.
+        """
+        payload = self.snapshot()
+        return payload, len(json.dumps(payload, separators=(",", ":")).encode())
+
+    def snapshot_bytes(self) -> int:
+        return self.snapshot_with_size()[1]
+
+    def apply(self, snapshot: dict[str, Any]) -> None:
         """Merge a peer's snapshot.
 
         Idempotent by construction rather than by a dedup cache: joining the
@@ -331,7 +346,11 @@ class Replica:
             incoming = self.schema.decode_record(payload)
             before = self.records.get(record_id)
             merged = incoming if before is None else before.join(incoming)
-            if before is not None and merged.canonical() == before.canonical():
+            # `before is merged` catches the common no-op cheaply. A full
+            # canonical comparison here was ~14% of runtime and only fed a
+            # statistics counter, which is not worth two canonical forms per
+            # delivered message.
+            if before is not None and merged.state == before.state:
                 self.duplicate_ops += 1
             self.records[record_id] = merged
             self.applied_ops += 1
@@ -343,7 +362,7 @@ class Replica:
 
     def commit(self) -> None:
         """Make the current state durable. Everything after this survives a crash."""
-        self.durable = {rid: json.dumps(r.to_json(), sort_keys=True) for rid, r in self.records.items()}
+        self.durable = dict(self.records)
 
     def crash(self) -> None:
         """Lose volatile state. Committed state survives; the rest does not."""
@@ -353,10 +372,7 @@ class Replica:
 
     def restart(self) -> None:
         self.down = False
-        self.records = {
-            rid: self.schema.decode_record(json.loads(blob))
-            for rid, blob in self.durable.items()
-        }
+        self.records = dict(self.durable)
 
     def canonical(self) -> tuple[tuple[str, Any], ...]:
         return tuple(

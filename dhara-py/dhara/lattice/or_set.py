@@ -91,6 +91,11 @@ class ORSet:
     # -- lattice ----------------------------------------------------------
 
     def join(self, other: Self) -> Self:
+        # Absorption, exact by the lattice laws: join(a, b) == a when b <= a.
+        if other.adds <= self.adds and other.removed_tags <= self.removed_tags:
+            return self
+        if self.adds <= other.adds and self.removed_tags <= other.removed_tags:
+            return other
         return type(self)(
             self.adds | other.adds,
             self.removed_tags | other.removed_tags,

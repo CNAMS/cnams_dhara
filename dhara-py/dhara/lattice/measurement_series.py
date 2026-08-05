@@ -181,6 +181,15 @@ class MeasurementSeries:
                 f"cannot join series with different dedup keys: "
                 f"{self.dedup_on} vs {other.dedup_on}"
             )
+        # Absorption: join(a, b) == a whenever b <= a. Exact by the lattice
+        # laws, not an approximation - and it is the common case here, because
+        # a re-delivered snapshot is usually a subset of what the receiver
+        # already holds. Without it every redundant delivery re-deduplicates
+        # the entire series.
+        if other.entries_ <= self.entries_:
+            return self
+        if self.entries_ <= other.entries_:
+            return other
         return type(self)(self.entries_ | other.entries_, self.dedup_on)._deduplicated()
 
     def leq(self, other: Self) -> bool:

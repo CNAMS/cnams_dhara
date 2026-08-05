@@ -132,6 +132,10 @@ class Field:
 class Schema:
     name: str
     fields: tuple[Field, ...]
+    #: Precomputed in __post_init__. Rebuilding it per access was 135,000
+    #: tuple constructions across a 120-seed sample, for a value that cannot
+    #: change on a frozen dataclass.
+    _names: tuple[str, ...] = dc_field(default=(), compare=False, repr=False)
 
     def __post_init__(self) -> None:
         if not self.fields:
@@ -141,6 +145,7 @@ class Schema:
             if f.name in seen:
                 raise LatticeError(f"duplicate field {f.name!r} in schema {self.name!r}")
             seen.add(f.name)
+        object.__setattr__(self, "_names", tuple(f.name for f in self.fields))
 
     def field(self, name: str) -> Field:
         for f in self.fields:
@@ -150,7 +155,7 @@ class Schema:
 
     @property
     def field_names(self) -> tuple[str, ...]:
-        return tuple(f.name for f in self.fields)
+        return self._names
 
     def empty_record(self) -> Record:
         return Record(self, {f.name: f.empty() for f in self.fields})

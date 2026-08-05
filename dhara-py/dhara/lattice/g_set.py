@@ -43,6 +43,11 @@ class GSet:
         return type(self)(self.elements | {element})
 
     def join(self, other: Self) -> Self:
+        # Absorption, exact by the lattice laws: join(a, b) == a when b <= a.
+        if other.elements <= self.elements:
+            return self
+        if self.elements <= other.elements:
+            return other
         return type(self)(self.elements | other.elements)
 
     def leq(self, other: Self) -> bool:
