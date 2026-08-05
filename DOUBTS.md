@@ -48,7 +48,7 @@ still worth confirming, because the cost only grows from here.
 | [D-07](#d-07) | 🟢 | "Same calendar day" needs a timezone that may not be needed | open |
 | [D-08](#d-08) | 🟠 | Device ids assumed server-issued at enrolment | open |
 | [D-09](#d-09) | 🟢 | Repository hosted under the CNAMS org against roadmap §4 | decided |
-| [D-10](#d-10) | 🟠 | CI workflow is unverified — no runner has executed it | open |
+| [D-10](#d-10) | 🔴 | CI has never executed — now blocks **two** phase gates | open |
 | [D-11](#d-11) | 🟢 | The 90% coverage gate is currently meaningless | open |
 | [D-12](#d-12) | 🔴 | WI-0.0 field access is a real-world action nobody has taken | open |
 | [D-13](#d-13) | 🟠 | Fourteen commit subjects exceed the 72-char limit the hook now enforces | open |
@@ -338,7 +338,7 @@ import path, module name, wire field or spec document.
 ---
 
 <a id="d-10"></a>
-## D-10 — CI workflow is unverified 🟠
+## D-10 — CI has never executed 🔴
 
 **Hit while** WI-0.3.
 
@@ -359,6 +359,15 @@ in one commit.
 
 **Resolves by** Pushing and reading the Actions tab. Until then, **the Phase 0 exit
 checklist item "CI is green" is unticked and must stay unticked.**
+
+⚠ **Escalated after Phase 2.** This is no longer a nuisance. The nightly workflow
+shards the million-schedule gate across four jobs, and the development machine's
+sandbox terminates long multi-process runs (exit 144) — so the Phase 2 gate
+cannot be met locally either.
+
+**One action — letting CI run once — closes the Phase 0 exit and unblocks the
+Phase 2 gate.** After the field-access conversation, it is the highest-leverage
+item in the project.
 
 ---
 

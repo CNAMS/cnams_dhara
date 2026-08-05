@@ -104,15 +104,15 @@ The clock layer is done. The lattice layer is not.
 
 | WI | Item | Notes |
 |---|---|---|
-| 2.15 | Shrinking | Implemented, never exercised on a real failure — the three found so far were diagnosable directly |
-| **2.19** | **Million-schedule sweep** `[gate]` | **5,000 run, all green. The gate needs ~11.5h single-core or ~3h across the four nightly shards.** |
-| 2.21 | Phase 2 exit review | Blocked on 2.19 |
+| **2.19** | **Million-schedule sweep** `[gate]` | **20,000 run (973,819 operations), all green.** Cannot be run locally: the sandbox kills long multi-process jobs. The nightly workflow shards the full million across four CI jobs. |
 
-⚠ **Throughput is 24 schedules/s against a 500/s target** — a 20× miss. Most of it
-is full-state sync serialisation, which is exactly the cost Phase 3's delta design
-removes (WI-3.1). The honest move is to run the gate as an overnight sharded job and
-re-measure after WI-3.1, rather than optimising a path that is about to be replaced.
-→ [docs/simulation-report.md](docs/simulation-report.md)
+Everything else in Phase 2 is done, including the exit review
+([docs/phase-2-exit.md](docs/phase-2-exit.md)), which records why the tag is
+withheld.
+
+⚠ **Throughput is 43 schedules/s against a 500/s target.** Profiling took it from
+24; what remains is full-state serialisation, exactly the cost WI-3.1 deletes.
+Re-measure after Phase 3 rather than optimising code about to be removed.
 
 ### Phases 2–6
 

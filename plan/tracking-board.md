@@ -16,12 +16,12 @@ Markers: `[gate]` phase exit depends on it · `[stretch]` cut first when slippin
 |---|---|---|---|---|
 | 0 — Conflict catalogue and spec | 1–2 | 15 | 13 | **exit blocked** — WI-0.0 and WI-0.14 |
 | 1 — Clocks and lattices | 3–5 | 18 | 18 | **criteria met, tag withheld** — see [exit review](../docs/phase-1-exit.md) |
-| 2 — The simulator | 6–9 | 22 | 20 | in progress — million-schedule gate running |
+| 2 — The simulator | 6–9 | 22 | 21 | **exit blocked** — see [review](../docs/phase-2-exit.md) |
 | 3 — Delta sync and session protocol | 10–13 | 16 | 0 | not started |
 | 4 — Dart client and CGMS integration | 14–16 | 12 | 0 | not started |
 | 5 — Security and identity | 17–20 | 11 | 0 | not started |
 | 6 — Field deployment and write-up | 21–24 | 11 | 0 | not started |
-| **Total** | **24** | **105** | **51** | |
+| **Total** | **24** | **105** | **52** | |
 
 ---
 
@@ -96,9 +96,9 @@ skew · rationale written, not just the choice ·
 - [x] **WI-2.16** Replay and tracing
 - [x] **WI-2.17** The deliberate-bug experiment `[gate]` ⚠ the phase's whole point
 - [x] **WI-2.18** Nightly CI and the regression corpus
-- [ ] **WI-2.19** The million-schedule sweep `[gate]` — **5,000 run; ~11.5h single-core for the gate**
+- [ ] **WI-2.19** The million-schedule sweep `[gate]` — **20,000 run (973,819 ops), all green. Blocked on CI ever executing.**
 - [x] **WI-2.20** Simulation report
-- [ ] **WI-2.21** Phase 2 exit review `[gate]`
+- [x] **WI-2.21** Phase 2 exit review `[gate]` — [written](../docs/phase-2-exit.md); criteria not met, tag withheld
 
 **Exit gate:** 1,000,000 schedules green · all six mutations caught within 1,000
 seeds · the experiment written up including what the harness *cannot* catch ·
@@ -199,7 +199,7 @@ was optimistic · `v0.1.0` tagged ·
 
 - [ ] `phase-0-complete`
 - [ ] `phase-1-complete` — criteria met; withheld until phase 0 exits and CI runs
-- [ ] `phase-2-complete`
+- [ ] `phase-2-complete` — 3 criteria unmet; gate and CI both blocked on one unblocking action
 - [ ] `phase-3-complete`
 - [ ] `v0.1.0-rc` — wire protocol frozen, CGMS switches to pinned tags
 - [ ] `phase-4-complete`
