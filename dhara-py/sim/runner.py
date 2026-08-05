@@ -19,6 +19,8 @@ than one command it will not be used at 11 PM, and the simulator's value halves.
 from __future__ import annotations
 
 import json
+import multiprocessing
+import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -118,6 +120,62 @@ def sweep(
                 flush=True,
             )
 
+    result.elapsed_s = time.perf_counter() - started
+    return result
+
+
+def _shard(args: tuple[int, int, str]) -> tuple[int, int, list[Failure]]:
+    """One worker's slice. Top-level so it can be pickled."""
+    start, count, preset = args
+    seeds = 0
+    operations = 0
+    failures: list[Failure] = []
+    for seed in range(start, start + count):
+        outcome = run_seed(seed, preset)
+        seeds += 1
+        operations += outcome.operations
+        if not outcome.ok:
+            failures.append(_failure(outcome))
+    return seeds, operations, failures
+
+
+def parallel_sweep(
+    start: int,
+    count: int,
+    preset: str = "hostile",
+    *,
+    workers: int | None = None,
+) -> SweepResult:
+    """Shard a seed range across processes.
+
+    Each seed is an independent world, so sharding is embarrassingly parallel
+    and - crucially - changes nothing about determinism: seed 4471 produces the
+    same run whichever worker executes it, and whether it is executed alone or
+    alongside a million others.
+
+    This is what makes the million-schedule gate an overnight job rather than a
+    week. Single-core throughput is ~43 schedules/s, most of it full-state
+    serialisation that Phase 3's delta design removes; until then, parallelism
+    is the cheaper lever than optimising a path about to be replaced.
+    """
+    workers = workers or os.cpu_count() or 4
+    per_worker = max(1, count // workers)
+    slices = [
+        (start + i * per_worker, per_worker if i < workers - 1 else count - i * per_worker, preset)
+        for i in range(workers)
+    ]
+    slices = [sl for sl in slices if sl[1] > 0]
+
+    started = time.perf_counter()
+    result = SweepResult(seeds=0)
+
+    with multiprocessing.Pool(len(slices)) as pool:
+        for seeds, operations, failures in pool.imap_unordered(_shard, slices):
+            result.seeds += seeds
+            result.operations += operations
+            result.failures.extend(failures)
+
+    result.failures.sort(key=lambda f: f.seed)
     result.elapsed_s = time.perf_counter() - started
     return result
 
@@ -248,6 +306,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--record", help="filter the timeline to one record id")
     parser.add_argument("--shrink", action="store_true", help="shrink the first failure")
     parser.add_argument("--progress", type=int, default=0)
+    parser.add_argument(
+        "--workers", type=int, default=1, help="shard the range across N processes"
+    )
     args = parser.parse_args(argv)
 
     if args.replay is not None:
@@ -255,11 +316,16 @@ def main(argv: list[str] | None = None) -> int:
         print(render_timeline(outcome, record=args.record))
         return 0 if outcome.ok else 1
 
-    result = sweep(
-        range(args.start, args.start + args.seeds),
-        args.preset,
-        progress_every=args.progress,
-    )
+    if args.workers > 1:
+        result = parallel_sweep(
+            args.start, args.seeds, args.preset, workers=args.workers
+        )
+    else:
+        result = sweep(
+            range(args.start, args.start + args.seeds),
+            args.preset,
+            progress_every=args.progress,
+        )
     print(result.summary())
 
     if result.failures and args.shrink:
