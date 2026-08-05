@@ -53,6 +53,8 @@ still worth confirming, because the cost only grows from here.
 | [D-12](#d-12) | 🔴 | WI-0.0 field access is a real-world action nobody has taken | open |
 | [D-13](#d-13) | 🟠 | Fourteen commit subjects exceed the 72-char limit the hook now enforces | open |
 | [D-14](#d-14) | 🟢 | WI-1.0 was done before Phase 0's exit gate | noted |
+| [D-15](#d-15) | 🟠 | OR-Set removes and statuses carry no HLC, so their deltas cannot be filtered | open |
+| [D-16](#d-16) | 🔴 | A version-vector frontier cannot soundly filter a delta | **worked around** |
 
 ---
 
@@ -478,6 +480,104 @@ engine code rather than after it.
 **Resolves by** Noted rather than resolved. Worth reflecting back into
 [plan/phase-0-catalogue-and-spec.md](plan/phase-0-catalogue-and-spec.md) if the plan
 is ever revised: WI-1.0 is a natural Phase 0 item.
+
+---
+
+<a id="d-15"></a>
+## D-15 — Removes and statuses carry no HLC, so their deltas cannot be filtered 🟠
+
+**Hit while** WI-3.1, and found by `test_a_delta_completes_the_peer_exactly`
+rather than by inspection.
+
+**Doubt**
+Three values in the schema carry no timestamp of their own:
+
+| Value | Why it cannot be filtered |
+|---|---|
+| An OR-Set **remove** | `removed_tags` holds the *add's* HLC. A frontier that has seen the add reports the remove as seen too. |
+| An OR-Set **add**, symmetrically | The peer may have seen only the remove of that tag. |
+| A **status** position | It has no HLC at all. |
+| A **GSet** element | Same. |
+
+Both OR-Set filtering directions are wrong, and in opposite ways: filtering
+removes **resurrects deleted elements**; filtering adds leaves two replicas with
+different canonical state for the same observable set, which is a convergence
+failure by the definition this project uses.
+
+**Assumed**
+Send them whole. An OR-Set, a status and a GSet travel in full on any delta that
+includes their record.
+
+**Cost if wrong** Bandwidth, on the network where bandwidth is the entire
+problem. An idle sync is no longer free: it costs a status and a tombstone set
+per record it touches. Tombstones are bounded by operation count rather than
+data volume, so this is affordable at v0.1 scale and is **not affordable
+forever** — it grows with every remove a device has ever performed.
+
+**Resolves by** Giving a remove and a status their own HLC. That makes both
+filterable like everything else, and it is a lattice **and** wire-format change,
+so it wants to be done alongside the tombstone-retention question rather than
+before it. → [plan/open-questions.md](plan/open-questions.md) Q2
+
+⚠ Worth doing before Phase 3's bytes-per-record figure (WI-3.12) is published,
+or the headline metric will be measuring this limitation rather than the delta
+design.
+
+---
+
+<a id="d-16"></a>
+## D-16 — A version-vector frontier cannot soundly filter a delta 🔴
+
+**Hit while** WI-3.1. **The most serious defect found so far**, and it was in
+code I had just written and believed.
+
+**Doubt**
+A `VersionVector` is a **maximum** per replica. `has_seen(h)` answers *"is `h` at
+or below the highest timestamp I hold from that replica?"* — which is the same
+question as *"have I received `h`?"* only if operations from a replica arrive
+**in order and without gaps**.
+
+They do not. Reordering is one of the six fault classes the simulator injects,
+and it is routine on a real cellular link. A peer can hold `(2000, 0, dev_a)`
+without holding `(1000, 0, dev_a)`.
+
+```python
+peer = VersionVector.of(HLC(2000, 0, "dev_a"))
+peer.has_seen(HLC(1000, 0, "dev_a"))   # True - and possibly false in fact
+```
+
+Filtering a delta on that omits the earlier operation. **The peer never receives
+it, nothing reports an error, and the measurement is gone.** It is precisely the
+silent-loss failure the project exists to prevent, arriving through the transport
+rather than through a merge — and no merge-level invariant would ever see it.
+
+**Worked around**
+`dhara/seen.py` holds a `SeenSet`: the exact set of operations a replica has
+observed, so `has_seen` answers the question it appears to answer. Deltas filter
+on that. `VersionVector` remains correct for what it was built for — comparing
+replicas and detecting concurrency — and a `SeenSet` carries one internally for
+exactly that.
+
+**Cost of the workaround** Size. An explicit set grows with operation count where
+a frontier is one entry per replica. Over a six-month backlog that is the
+difference between a handful of bytes and thousands.
+
+**Resolves by** **Per-replica sequence numbers**: a dense, monotonic counter
+alongside the HLC, so a gap is detectable and a frontier can be advanced
+*contiguously*. That restores the compact form's soundness. It changes the
+operation id and the wire format, so it is a protocol decision rather than an
+implementation detail.
+
+⚠ **This must be settled before WI-3.13**, the six-month backlog scenario. That
+scenario is the Phase 3 exit criterion and it is precisely the case where an
+explicit seen-set is most expensive — measuring it against the workaround rather
+than the intended design would produce a headline number that means nothing.
+
+⚠ The delta layer's soundness also rests on **one HLC identifying exactly one
+operation**, globally. That holds because every write calls `Clock.send()` once
+and it is strictly monotonic. What breaks it is C-24, duplicate device ids —
+already catalogued, handled at enrolment, and already recorded as a harness
+blind spot.
 
 ---
 
