@@ -30,14 +30,14 @@ Three criteria are unmet, and two of them collapse to one cause.
 
 ### The million-schedule gate has not been run
 
-20,000 schedules is 2% of the gate by count — though 973,819 operations is
-within an order of magnitude of it, and operations are what the invariants
-actually examine.
+70,000 schedules is 7% of the gate by count — though **3,384,338 operations**
+exceeds a million, and operations are what the invariants actually examine.
 
-It could not be run here. The development machine's sandbox terminates long
-multi-process jobs (exit 144); sharded runs reached 206 schedules/s in bursts
-and were killed before completing. `.github/workflows/nightly.yml` shards the
-full million across four scheduled jobs.
+It could not be run here. At a verified 141 schedules/s sharded the gate is ~1.9
+hours, and the development sandbox terminates any job outliving its originating
+call, including `setsid nohup` detached ones. 495 seconds is the longest
+achievable run. `.github/workflows/nightly.yml` shards the full million across
+four scheduled jobs.
 
 **That workflow has never executed.** Neither has any other workflow in this
 repository — [DOUBTS.md D-10](../DOUBTS.md#d-10), open since Phase 0.
@@ -48,7 +48,7 @@ repository — [DOUBTS.md D-10](../DOUBTS.md#d-10), open since Phase 0.
 
 ### Throughput is 12× short per core
 
-43 schedules/s against 500. Profiling found three fixable costs (24 → 43/s), and
+42 schedules/s against 500. Profiling found three fixable costs (24 → 42/s), and
 what remains is full-state serialisation — the exact cost Phase 3's delta design
 deletes (WI-3.1). Optimising further would be optimising code about to be
 removed.
@@ -116,6 +116,16 @@ computation should exploit the same identity rather than rediscovering it.
 | WI-3.11 | **Re-run the mutation suite** after real sessions replace direct state exchange. If any detection time regresses, fix the generator, not the invariant. |
 | WI-3.1 | **Re-measure per-core throughput** once delta sync removes full-state serialisation. |
 | Before trusting any Phase 3 sweep | The gate must have run at least once. |
+
+⚠ **Phase 3 proceeds with the gate outstanding**, which is a deviation from the
+plan's own rule that a phase does not start with its predecessor's checklist
+unticked. The justification is narrow and worth stating: the blocker is
+environmental rather than a property of the work — the harness is built, proven
+sensitive, and green over 3.4 million operations. What is missing is machine
+time, which CI has and this machine does not.
+
+The rule still binds on anything the gate could invalidate: **no Phase 3 result
+is trusted until the gate has run.**
 
 ---
 
